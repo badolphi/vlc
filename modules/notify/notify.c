@@ -123,7 +123,7 @@ static int Open( vlc_object_t *p_this )
     }
 
     /* */
-    var_AddCallback( pl_Get( p_intf ), "input-current", ItemChange, p_intf );
+    var_AddCallback( pl_Get( p_intf ), "item-change", ItemChange, p_intf );
 
     return VLC_SUCCESS;
 }
@@ -136,7 +136,7 @@ static void Close( vlc_object_t *p_this )
     intf_thread_t   *p_intf = ( intf_thread_t* ) p_this;
     intf_sys_t      *p_sys  = p_intf->p_sys;
 
-    var_DelCallback( pl_Get( p_intf ), "input-current", ItemChange, p_this );
+    var_DelCallback( pl_Get( p_intf ), "item-change", ItemChange, p_this );
 
     if( p_sys->notification )
     {
@@ -163,15 +163,14 @@ static int ItemChange( vlc_object_t *p_this, const char *psz_var,
     char           *psz_artist;
     char           *psz_album;
     char           *psz_arturl;
-    input_thread_t *p_input = newval.p_address;
+    input_item_t   *p_input_item = newval.p_address;
     intf_thread_t  *p_intf  = param;
     intf_sys_t     *p_sys   = p_intf->p_sys;
 
-    if( !p_input )
+    if( !input_item_IsPreparsed( p_input_item ) )
         return VLC_SUCCESS;
 
     /* Playing something ... */
-    input_item_t *p_input_item = input_GetItem( p_input );
     psz_title = input_item_GetTitleFbName( p_input_item );
 
     /* We need at least a title */
