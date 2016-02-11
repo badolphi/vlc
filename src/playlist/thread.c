@@ -207,19 +207,6 @@ static bool PlayItem( playlist_t *p_playlist, playlist_item_t *p_item )
 
     input_thread_t *p_input_thread = input_Create( p_playlist, p_input, NULL,
                                                    p_sys->p_input_resource );
-    if( likely(p_input_thread != NULL) )
-    {
-        var_AddCallback( p_input_thread, "intf-event",
-                         InputEvent, p_playlist );
-
-        if( input_Start( p_input_thread ) )
-        {
-            var_DelCallback( p_input_thread, "intf-event",
-                             InputEvent, p_playlist );
-            vlc_object_release( p_input_thread );
-            p_input_thread = NULL;
-        }
-    }
 
     /* TODO store art policy in playlist private data */
     char *psz_arturl = input_item_GetArtURL( p_input );
@@ -238,6 +225,20 @@ static bool PlayItem( playlist_t *p_playlist, playlist_item_t *p_item )
     PL_UNLOCK;
 
     var_SetAddress( p_playlist, "input-current", p_input_thread );
+
+    if( likely(p_input_thread != NULL) )
+    {
+        var_AddCallback( p_input_thread, "intf-event",
+                         InputEvent, p_playlist );
+
+        if( input_Start( p_input_thread ) )
+        {
+            var_DelCallback( p_input_thread, "intf-event",
+                             InputEvent, p_playlist );
+            vlc_object_release( p_input_thread );
+            p_input_thread = NULL;
+        }
+    }
 
     PL_LOCK;
     return p_input_thread != NULL;
