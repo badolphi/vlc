@@ -92,7 +92,6 @@ struct intf_sys_t
 {
     DBusConnection *p_conn;
     playlist_t     *p_playlist;
-    bool            b_meta_read;
     dbus_int32_t    i_player_caps;
     dbus_int32_t    i_playing_state;
     bool            b_can_play;

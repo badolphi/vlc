@@ -1057,8 +1057,6 @@ static int TrackChange( intf_thread_t *p_intf )
         p_sys->p_input = NULL;
     }
 
-    p_sys->b_meta_read = false;
-
     p_input = pl_CurrentInput( p_intf );
     if( !p_input )
     {
@@ -1071,9 +1069,6 @@ static int TrackChange( intf_thread_t *p_intf )
         vlc_object_release( p_input );
         return VLC_EGENERIC;
     }
-
-    if( input_item_IsPreparsed( p_item ) )
-        p_sys->b_meta_read = true;
 
     p_sys->p_input = p_input;
     var_AddCallback( p_input, "intf-event", InputCallback, p_intf );
