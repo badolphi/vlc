@@ -259,27 +259,21 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
     if( !psz_name_org )
         return NULL;
 
-    char *psz_fname = vlc_uri2path( psz_name_org );
-    if( !psz_fname )
-        return NULL;
-
     /* extract filename & dirname from psz_fname */
-    char *f_dir = strdup( psz_fname );
+    char *f_dir = strdup( psz_name_org );
     if( f_dir == NULL )
     {
-        free( psz_fname );
         return NULL;
     }
 
-    const char *f_fname = strrchr( psz_fname, DIR_SEP_CHAR );
+    const char *f_fname = strrchr( psz_name_org, DIR_SEP_CHAR );
     if( !f_fname )
     {
         free( f_dir );
-        free( psz_fname );
         return NULL;
     }
     f_fname++; /* Skip the '/' */
-    f_dir[f_fname - psz_fname] = 0; /* keep dir separator in f_dir */
+    f_dir[f_fname - psz_name_org] = 0; /* keep dir separator in f_dir */
 
     i_fname_len = strlen( f_fname );
 
@@ -290,7 +284,6 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
         free( f_dir );
         free( f_fname_noext );
         free( f_fname_trim );
-        free( psz_fname );
         return NULL;
     }
 
@@ -305,18 +298,22 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
         if( psz_dir == NULL || ( j >= 0 && !strcmp( psz_dir, f_dir ) ) )
             continue;
 
-        /* parse psz_src dir */
-        DIR *dir = vlc_opendir( psz_dir );
-        if( dir == NULL )
+        stream_t *p_stream = stream_UrlNew( p_this, psz_dir );
+        if( p_stream == NULL )
             continue;
 
         msg_Dbg( p_this, "looking for a subtitle file in %s", psz_dir );
 
-        const char *psz_name;
-        while( (psz_name = vlc_readdir( dir )) && i_sub_count < MAX_SUBTITLE_FILES )
+        input_item_t *p_item;
+        while( ( p_item = stream_ReadDir( p_stream ) )
+            && i_sub_count < MAX_SUBTITLE_FILES )
         {
+            const char *psz_name = p_item->psz_name;
             if( psz_name[0] == '.' || !subtitles_Filter( psz_name ) )
+            {
+                input_item_Release( p_item );
                 continue;
+            }
 
             char tmp_fname_noext[strlen( psz_name ) + 1];
             char tmp_fname_trim[strlen( psz_name ) + 1];
@@ -355,31 +352,19 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
                 /* doesn't contain the movie name, prefer files in f_dir over subdirs */
                 i_prio = SUB_PRIORITY_MATCH_NONE;
             }
-            if( i_prio >= i_fuzzy )
+            if( i_prio >= i_fuzzy && p_item->i_type == ITEM_TYPE_FILE )
             {
-                struct stat st;
-                char *path;
-
-                if( asprintf( &path, "%s"DIR_SEP"%s", psz_dir, psz_name ) < 0 )
-                    continue;
-
-                if( strcmp( path, psz_fname )
-                 && vlc_stat( path, &st ) == 0
-                 && S_ISREG( st.st_mode ) && result )
-                {
-                    msg_Dbg( p_this,
-                            "autodetected subtitle: %s with priority %d",
-                            path, i_prio );
-                    result[i_sub_count].priority = i_prio;
-                    result[i_sub_count].psz_fname = path;
-                    path = NULL;
-                    result[i_sub_count].psz_ext = strdup(tmp_fname_ext);
-                    i_sub_count++;
-                }
-                free( path );
+                msg_Dbg( p_this,
+                        "autodetected subtitle: %s with priority %d",
+                        p_item->psz_uri, i_prio );
+                result[i_sub_count].priority = i_prio;
+                result[i_sub_count].psz_fname = strdup(p_item->psz_uri);
+                result[i_sub_count].psz_ext = strdup(tmp_fname_ext);
+                i_sub_count++;
             }
+            input_item_Release( p_item );
         }
-        closedir( dir );
+        stream_Delete( p_stream );
     }
     if( subdirs )
     {
@@ -390,7 +375,6 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
     free( f_dir );
     free( f_fname_trim );
     free( f_fname_noext );
-    free( psz_fname );
 
     if( !result )
         return NULL;

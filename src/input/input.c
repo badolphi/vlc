@@ -2815,35 +2815,52 @@ static void input_SubtitleFileAdd( input_thread_t *p_input,
                                    const char *psz_subtitle, unsigned i_flags,
                                    bool b_check_idx )
 {
+    char *url = NULL;
+    if( strstr( psz_subtitle, "://" ) == NULL )
+    {
+        url = vlc_path2uri( psz_subtitle, NULL );
+        if( url == NULL )
+            return;
+        psz_subtitle = url;
+    }
+
     /* if we are provided a subtitle.sub file,
      * see if we don't have a subtitle.idx and use it instead */
-    char *psz_idxpath = NULL;
+    input_item_t *p_item = NULL;
     char *psz_extension = b_check_idx ? strrchr( psz_subtitle, '.') : NULL;
     if( psz_extension && strcmp( psz_extension, ".sub" ) == 0 )
     {
-        psz_idxpath = strdup( psz_subtitle );
-        if( psz_idxpath )
+        char *psz_dir = strdup( psz_subtitle );
+        char *p_sep;
+        if( psz_dir && (p_sep = strrchr(psz_dir, '/') ) )
         {
-            struct stat st;
+            *p_sep = '\0';
 
-            psz_extension = psz_extension - psz_subtitle + psz_idxpath;
-            strcpy( psz_extension, ".idx" );
-
-            if( !vlc_stat( psz_idxpath, &st ) && S_ISREG( st.st_mode ) )
+            stream_t *p_stream = stream_UrlNew( p_input, psz_dir );
+            if( p_stream != NULL )
             {
-                msg_Dbg( p_input, "using %s as subtitle file instead of %s",
-                         psz_idxpath, psz_subtitle );
-                psz_subtitle = psz_idxpath;
+                while( ( p_item = stream_ReadDir( p_stream ) ) )
+                {
+                    size_t i_len = strlen( p_item->psz_name );
+                    if( i_len > 4
+                     && strcmp( p_item->psz_name + i_len - 4, ".idx" ) == 0)
+                    {
+                        msg_Dbg( p_input, "using %s as subtitle file instead of %s",
+                                 p_item->psz_uri, psz_subtitle );
+                        psz_subtitle = p_item->psz_uri;
+                        break;
+                    }
+                    else
+                        input_item_Release( p_item );
+                }
+                stream_Delete( p_stream );
             }
         }
     }
 
-    char *url = vlc_path2uri( psz_subtitle, NULL );
-    free( psz_idxpath );
-    if( url == NULL )
-        return;
-
-    input_SubtitleAdd( p_input, url, i_flags );
+    input_SubtitleAdd( p_input, psz_subtitle, i_flags );
+    if( p_item != NULL )
+        input_item_Release( p_item );
     free( url );
 }
 
