@@ -942,7 +942,10 @@ static void LoadSubtitles( input_thread_t *p_input )
     /* Look for and add subtitle files */
     unsigned i_flags = SUB_FORCED;
 
-    char *psz_subtitle = var_GetNonEmptyString( p_input, "sub-file" );
+    char *psz_subtitle = var_GetNonEmptyString( p_input, "sub-url" );
+    if( psz_subtitle == NULL )
+        psz_subtitle = var_GetNonEmptyString( p_input, "sub-file" );
+
     if( psz_subtitle != NULL )
     {
         msg_Dbg( p_input, "forced subtitle: %s", psz_subtitle );
@@ -1146,6 +1149,7 @@ static int Init( input_thread_t * p_input )
             var_SetString( p_input, "input-slave", "" );
             var_SetInteger( p_input, "input-repeat", 0 );
             var_SetString( p_input, "sub-file", "" );
+            var_SetString( p_input, "sub-url", "" );
             var_SetBool( p_input, "sub-autodetect-file", false );
         }
     }

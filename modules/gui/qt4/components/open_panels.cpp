@@ -280,7 +280,7 @@ void FileOpenPanel::updateMRL()
 
     /* Options */
     if( ui.subGroupBox->isChecked() &&  !ui.subInput->text().isEmpty() ) {
-        mrl.append( " :sub-file=" + colon_escape( ui.subInput->text() ) );
+        mrl.append( " :sub-url=" + colon_escape( ui.subInput->text() ) );
     }
 
     emit methodChanged( "file-caching" );

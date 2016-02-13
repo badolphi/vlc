@@ -740,10 +740,10 @@ static const char *const ppsz_prefres[] = {
     "Look for a subtitle file in those paths too, if your subtitle " \
     "file was not found in the current directory.")
 
-#define SUB_FILE_TEXT N_("Use subtitle file")
-#define SUB_FILE_LONGTEXT N_( \
-    "Load this subtitle file. To be used when autodetect cannot detect " \
-    "your subtitle file.")
+#define SUB_URL_TEXT N_("Use subtitle url")
+#define SUB_URL_LONGTEXT N_( \
+    "Load this subtitle url. To be used when autodetect cannot detect " \
+    "your subtitle url.")
 
 /* DVD and VCD devices */
 #define DVD_DEV_TEXT N_("DVD device")
@@ -1623,8 +1623,9 @@ vlc_module_begin ()
                 TEXTRENDERER_LONGTEXT, true )
 
     set_section( N_("Subtitles") , NULL )
-    add_loadfile( "sub-file", NULL, SUB_FILE_TEXT,
-                  SUB_FILE_LONGTEXT, false )
+    add_obsolete_string( "sub-file" ) /* deprecated since 3.0.0 */
+    add_string( "sub-url", NULL, SUB_URL_TEXT,
+                  SUB_URL_LONGTEXT, false )
         change_safe()
     add_bool( "sub-autodetect-file", true,
                  SUB_AUTO_TEXT, SUB_AUTO_LONGTEXT, false )
