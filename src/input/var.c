@@ -437,6 +437,8 @@ void input_ConfigVarInit ( input_thread_t *p_input )
         var_Create( p_input, "sub-file", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
         var_Create( p_input, "sub-autodetect-file", VLC_VAR_BOOL |
                     VLC_VAR_DOINHERIT );
+        var_Create( p_input, "sub-autodetect-network", VLC_VAR_BOOL |
+                    VLC_VAR_DOINHERIT );
         var_Create( p_input, "sub-autodetect-path", VLC_VAR_STRING |
                     VLC_VAR_DOINHERIT );
         var_Create( p_input, "sub-autodetect-fuzzy", VLC_VAR_INTEGER |

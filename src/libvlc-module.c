@@ -725,6 +725,10 @@ static const char *const ppsz_prefres[] = {
     "Automatically detect a subtitle file, if no subtitle filename is " \
     "specified (based on the filename of the movie).")
 
+#define SUB_AUTO_NETWORK_TEXT N_("Autodetect subtitle files on network")
+#define SUB_AUTO_NETWORK_LONGTEXT N_( \
+    "This can slow down the opening of distant files." )
+
 #define SUB_FUZZY_TEXT N_("Subtitle autodetection fuzziness")
 #define SUB_FUZZY_LONGTEXT N_( \
     "This determines how fuzzy subtitle and movie filename matching " \
@@ -1629,6 +1633,8 @@ vlc_module_begin ()
         change_safe()
     add_bool( "sub-autodetect-file", true,
                  SUB_AUTO_TEXT, SUB_AUTO_LONGTEXT, false )
+    add_bool( "sub-autodetect-network", false,
+               SUB_AUTO_NETWORK_TEXT, SUB_AUTO_NETWORK_LONGTEXT, false )
     add_integer( "sub-autodetect-fuzzy", 3,
                  SUB_FUZZY_TEXT, SUB_FUZZY_LONGTEXT, true )
 #if defined( _WIN32 ) || defined( __OS2__ )

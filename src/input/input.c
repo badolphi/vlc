@@ -953,7 +953,9 @@ static void LoadSubtitles( input_thread_t *p_input )
         i_flags = SUB_NOFLAG;
     }
 
-    if( var_GetBool( p_input, "sub-autodetect-file" ) )
+    if( var_GetBool( p_input, "sub-autodetect-file" )
+     && ( !p_input->p->p_item->b_net
+       || var_GetBool( p_input, "sub-autodetect-network" ) ) )
     {
         char *psz_autopath = var_GetNonEmptyString( p_input, "sub-autodetect-path" );
         char **ppsz_subs = subtitles_Detect( p_input, psz_autopath,
