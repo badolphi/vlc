@@ -180,18 +180,24 @@ int subtitles_Filter( const char *psz_dir_content )
     return 0;
 }
 
+struct sub_dir
+{
+    char *psz_path;
+    bool b_detect;
+};
 
 /**
  * Convert a list of paths separated by ',' to a char**
  */
-static char **paths_to_list( const char *psz_dir, char *psz_path )
+static unsigned int paths_to_list( const char *psz_dir, char *psz_path,
+                                   struct sub_dir **pp_subdirs)
 {
     unsigned int i, k, i_nb_subdirs;
-    char **subdirs; /* list of subdirectories to look in */
+    struct sub_dir *subdirs; /* list of subdirectories to look in */
     char *psz_parser = psz_path;
 
     if( !psz_dir || !psz_path )
-        return NULL;
+        return 0;
 
     for( k = 0, i_nb_subdirs = 1; psz_path[k] != '\0'; k++ )
     {
@@ -199,9 +205,9 @@ static char **paths_to_list( const char *psz_dir, char *psz_path )
             i_nb_subdirs++;
     }
 
-    subdirs = calloc( i_nb_subdirs + 1, sizeof(char*) );
+    subdirs = calloc( i_nb_subdirs, sizeof(struct sub_dir) );
     if( !subdirs )
-        return NULL;
+        return 0;
 
     for( i = 0; psz_parser && *psz_parser != '\0' ; )
     {
@@ -216,16 +222,71 @@ static char **paths_to_list( const char *psz_dir, char *psz_path )
         if( *psz_subdir == '\0' )
             continue;
 
-        if( asprintf( &subdirs[i++], "%s%s",
-                  psz_subdir[0] == '.' ? psz_dir : "",
-                  psz_subdir ) == -1 )
-            break;
-    }
-    subdirs[i] = NULL;
+        if( psz_subdir[0] == '.' )
+        {
+            if( asprintf( &subdirs[i].psz_path, "%s%s", psz_dir,
+                          ( psz_subdir[1] == '/' || psz_subdir[1] == '\\' ) ?
+                          psz_subdir + 2 : psz_subdir ) == -1 )
+                subdirs[i].psz_path = NULL;
+            subdirs[i].b_detect = false;
+        }
+        else
+        {
+            subdirs[i].b_detect = true;
+            if( strstr( psz_subdir, "://" ) == NULL )
+                subdirs[i].psz_path = vlc_path2uri( psz_subdir, NULL );
+            else
+                subdirs[i].psz_path = strdup( psz_subdir );
+        }
 
-    return subdirs;
+        if( !subdirs[i].psz_path )
+        {
+            i_nb_subdirs = i;
+            break;
+        }
+        else
+            ++i;
+    }
+    *pp_subdirs = subdirs;
+
+    return i_nb_subdirs;
 }
 
+/**
+ * Check if "psz_dir/psz_name" is a parent of a dir in subdirs (or is equal to
+ * a dir in subdirs).
+ *
+ * If it's the case, subtitles_Detect will also check for subtitles in this dir.
+ */
+static void check_subdirs( const char *psz_dir, const char *psz_name,
+                           struct sub_dir *p_subdirs, unsigned int i_nb_subdirs )
+{
+
+
+    size_t i_dir_len = strlen( psz_dir );
+
+    for( unsigned int i = 0; i < i_nb_subdirs; ++i )
+    {
+        if( p_subdirs[i].b_detect )
+            continue;
+
+        if( strlen( p_subdirs[i].psz_path ) < i_dir_len )
+            continue;
+
+        if( strncmp( psz_dir, p_subdirs[i].psz_path, i_dir_len != 0 ) )
+            continue;
+        size_t i_sub_dir_len = strcspn( p_subdirs[i].psz_path + i_dir_len,
+                                        "/\\" );
+        if( i_sub_dir_len == 0 )
+            continue;
+        if( strncmp( psz_name, p_subdirs[i].psz_path + i_dir_len,
+                     i_sub_dir_len ) == 0 )
+        {
+            p_subdirs[i].b_detect = true;
+            break;
+        }
+    }
+}
 
 /**
  * Detect subtitle files.
@@ -251,7 +312,8 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
     int j, i_result2, i_sub_count, i_fname_len;
     char *f_fname_noext = NULL, *f_fname_trim = NULL;
 
-    char **subdirs; /* list of subdirectories to look in */
+    unsigned int nb_subdirs;
+    struct sub_dir *subdirs = NULL; /* list of subdirectories to look in */
 
     vlc_subfn_t *result = NULL; /* unsorted results */
     char **result2; /* sorted results */
@@ -291,11 +353,11 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
     strcpy_trim( f_fname_trim, f_fname_noext );
 
     result = calloc( MAX_SUBTITLE_FILES+1, sizeof(vlc_subfn_t) ); /* We check it later (simplify code) */
-    subdirs = paths_to_list( f_dir, psz_path );
-    for( j = -1, i_sub_count = 0; (j == -1) || ( j >= 0 && subdirs != NULL && subdirs[j] != NULL ); j++ )
+    nb_subdirs = paths_to_list( f_dir, psz_path, &subdirs );
+    for( j = -1, i_sub_count = 0; j < (int) nb_subdirs; j++ )
     {
-        const char *psz_dir = (j < 0) ? f_dir : subdirs[j];
-        if( psz_dir == NULL || ( j >= 0 && !strcmp( psz_dir, f_dir ) ) )
+        const char *psz_dir = (j < 0) ? f_dir : subdirs[j].psz_path;
+        if( psz_dir == NULL || ( j >= 0 && !subdirs[j].b_detect ) )
             continue;
 
         stream_t *p_stream = stream_UrlNew( p_this, psz_dir );
@@ -311,6 +373,8 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
             const char *psz_name = p_item->psz_name;
             if( psz_name[0] == '.' || !subtitles_Filter( psz_name ) )
             {
+                if( j < 0 && p_item->i_type == ITEM_TYPE_DIRECTORY )
+                    check_subdirs( psz_dir, psz_name, subdirs, nb_subdirs );
                 input_item_Release( p_item );
                 continue;
             }
@@ -366,10 +430,10 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
         }
         stream_Delete( p_stream );
     }
-    if( subdirs )
+    if( nb_subdirs > 0 )
     {
-        for( j = 0; subdirs[j]; j++ )
-            free( subdirs[j] );
+        for( unsigned int i = 0; i < nb_subdirs; i++ )
+            free( subdirs[i].psz_path );
         free( subdirs );
     }
     free( f_dir );
