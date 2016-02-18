@@ -146,6 +146,7 @@ typedef struct libvlc_priv_t
     /* Singleton objects */
     vlc_logger_t      *logger;
     vlm_t             *p_vlm;  ///< the VLM singleton (or NULL)
+    vlc_object_t      *p_renderer;
     vlc_dialog_provider *p_dialog_provider; ///< dialog provider
     vlc_keystore      *p_memory_keystore; ///< memory keystore
     struct playlist_t *playlist; ///< Playlist for interfaces
