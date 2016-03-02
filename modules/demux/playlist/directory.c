@@ -153,6 +153,8 @@ static int Demux( demux_t *p_demux )
 
     p_input = GetCurrentItem( p_demux );
     p_node = input_item_node_Create( p_input );
+    if( p_node == NULL )
+        return VLC_ENOMEM;
     p_node->b_can_loop = p_demux->p_sys->b_dir_can_loop;
     input_item_Release(p_input);
 
