@@ -72,6 +72,7 @@ VLC_API bool
 vlc_renderer_item_equals(const vlc_renderer_item *p_item,
                          const char *psz_module, const char *psz_host,
                          uint16_t i_port, vlc_renderer_flags e_flags);
+
 /**
  * Get the name of a renderer item
  */
@@ -192,10 +193,6 @@ struct vlc_renderer
 vlc_renderer *
 vlc_renderer_new(vlc_object_t *p_obj, const char *psz_renderer);
 #define vlc_renderer_new(a, b) vlc_renderer_new(VLC_OBJECT(a), b)
-
-/* Returns true if the renderer is created from this string option */
-bool
-vlc_renderer_equals(const vlc_renderer *p_renderer, const char *psz_renderer);
 
 int
 vlc_renderer_set_input(vlc_renderer *p_renderer, input_thread_t *p_input);

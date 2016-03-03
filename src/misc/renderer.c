@@ -246,12 +246,6 @@ vlc_renderer_new(vlc_object_t *p_obj, const char *psz_renderer)
     return p_renderer;
 }
 
-bool vlc_renderer_equals(const vlc_renderer *p_renderer,
-                         const char *psz_renderer)
-{
-    return !strcmp(p_renderer->p_item->psz_option, psz_renderer);
-}
-
 int
 vlc_renderer_set_input(vlc_renderer *p_renderer, input_thread_t *p_input)
 {
