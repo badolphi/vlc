@@ -163,7 +163,8 @@ static vlc_renderer *RequestRenderer( input_resource_t *p_resource,
 
     /* Check the validity of the renderer */
     if( p_resource->p_renderer_free &&
-        !vlc_renderer_equals( p_resource->p_renderer_free, psz_renderer ) )
+        !strcmp( vlc_renderer_item_option( p_resource->p_renderer_free->p_item ),
+                 vlc_renderer_item_option( psz_renderer ) ) )
     {
         msg_Dbg( p_resource->p_parent, "destroying unusable renderer" );
         DestroyRenderer( p_resource );
