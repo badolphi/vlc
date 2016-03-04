@@ -808,14 +808,14 @@ static int InitSout( input_thread_t * p_input )
 {
     if( p_input->b_preparsing )
         return VLC_SUCCESS;
+    char *psz;
+    const bool b_is_cmd = !strncasecmp( p_input->p->p_item->psz_uri, "vlc:", 4 );
 
-    char *psz_renderer = var_GetNonEmptyString( p_input, "renderer" );
-    if( psz_renderer )
+    if( !b_is_cmd && ( psz = var_GetNonEmptyString( p_input, "renderer" ) ) )
     {
         p_input->p->p_renderer =
-            input_resource_RequestRenderer( p_input->p->p_resource, NULL,
-                                            psz_renderer );
-        free( psz_renderer );
+            input_resource_RequestRenderer( p_input->p->p_resource, NULL, psz );
+        free( psz );
         if( !p_input->p->p_renderer )
         {
             input_ChangeState( p_input, ERROR_S );
@@ -825,19 +825,20 @@ static int InitSout( input_thread_t * p_input )
         }
     }
     else
+    {
         input_resource_RequestRenderer( p_input->p->p_resource, NULL, NULL );
+    }
 
     /* Find a usable sout and attach it to p_input */
-    char *psz = var_GetNonEmptyString( p_input, "sout" );
-    if( psz && strncasecmp( p_input->p->p_item->psz_uri, "vlc:", 4 ) )
+    if( !b_is_cmd && ( psz = var_GetNonEmptyString( p_input, "sout" ) ) )
     {
         p_input->p->p_sout  = input_resource_RequestSout( p_input->p->p_resource, NULL, psz );
+        free( psz );
         if( !p_input->p->p_sout )
         {
             input_ChangeState( p_input, ERROR_S );
             msg_Err( p_input, "cannot start stream output instance, " \
                               "aborting" );
-            free( psz );
             return VLC_EGENERIC;
         }
         if( libvlc_stats( p_input ) )
@@ -851,7 +852,6 @@ static int InitSout( input_thread_t * p_input )
     {
         input_resource_RequestSout( p_input->p->p_resource, NULL, NULL );
     }
-    free( psz );
 
     return VLC_SUCCESS;
 }
