@@ -378,7 +378,7 @@ void vlc_renderer_sys::plugOutputRedirection()
 void vlc_renderer_sys::InputUpdated( input_thread_t *p_input )
 {
     vlc_mutex_lock(&lock);
-    msg_Dbg( p_intf, "%ld InputUpdated p_input:%p was:%p playlist_Status:%d device:%s", GetCurrentThreadId(), (void*)p_input, (void*)this->p_input, this->p_input ? (int)var_GetInteger( this->p_input, "state" ) : -1, deviceIP.c_str() );
+    msg_Dbg( p_intf, "InputUpdated p_input:%p was:%p playlist_Status:%d device:%s", (void*)p_input, (void*)this->p_input, this->p_input ? (int)var_GetInteger( this->p_input, "state" ) : -1, deviceIP.c_str() );
 
     if (deviceIP.empty())
     {
@@ -615,7 +615,7 @@ static int InputEvent( vlc_object_t *p_this, char const *psz_var,
 
     if( val.i_int == INPUT_EVENT_STATE )
     {
-        msg_Info(p_this, "%ld playback state changed %d", GetCurrentThreadId(), (int)var_GetInteger( p_input, "state" ));
+        msg_Info(p_this, "playback state changed %d", (int)var_GetInteger( p_input, "state" ));
         vlc_mutex_locker locker(&p_sys->lock);
         p_sys->sendPlayerCmd();
     }

@@ -121,7 +121,7 @@ struct demux_sys_t
         if (p_intf->p_sys->i_seektime != -1)
         {
             const mtime_t i_seek_time = p_intf->p_sys->m_seektime; // - (p_intf->p_sys->playback_start_chromecast - p_intf->p_sys->playback_start_local);
-            msg_Dbg(p_demux, "%ld do the actual seek", GetCurrentThreadId());
+            msg_Dbg(p_demux, "do the actual seek");
             int i_ret = source_Control( DEMUX_SET_TIME, i_seek_time );
             if (i_ret != VLC_SUCCESS)
             {
@@ -134,11 +134,11 @@ struct demux_sys_t
             while (p_intf->p_sys->playback_start_chromecast < p_intf->p_sys->i_seektime)
             {
 #ifndef NDEBUG
-                msg_Dbg(p_demux, "%ld waiting for Chromecast seek", GetCurrentThreadId());
+                msg_Dbg(p_demux, "waiting for Chromecast seek");
 #endif
                 vlc_cond_wait(&p_intf->p_sys->seekCommandCond, &p_intf->p_sys->lock);
 #ifndef NDEBUG
-                msg_Dbg(p_demux, "%ld finished waiting for Chromecast seek", GetCurrentThreadId());
+                msg_Dbg(p_demux, "finished waiting for Chromecast seek");
 #endif
             }
             vlc_cleanup_pop();

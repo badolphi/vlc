@@ -1197,7 +1197,6 @@ void httpd_UrlDelete(httpd_url_t *url)
             continue;
 
         /* TODO complete it */
-        msg_Warn(host, "%ld:httpd:force closing client connection fd:%d", GetCurrentThreadId(), client->fd);
         TAB_REMOVE(host->i_client, host->client, client);
         httpd_ClientDestroy(client);
         i--;
