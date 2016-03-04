@@ -198,7 +198,7 @@ vlc_renderer_sys::vlc_renderer_sys(vlc_renderer * const p_this)
     ,f_volume(1.0)
     ,b_muted(false)
 {
-    vlc_mutex_init(&lock);
+    vlc_mutex_init_recursive(&lock);
     vlc_cond_init(&loadCommandCond);
     vlc_cond_init(&seekCommandCond);
 }
