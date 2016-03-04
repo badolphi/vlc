@@ -88,7 +88,7 @@ struct srv
     char *      psz_device_name;
     uint16_t    i_port;
     bool        b_renderer;
-    vlc_renderer_flags e_renderer_flags;
+    int         i_renderer_flags;
 };
 
 static const struct
@@ -96,7 +96,7 @@ static const struct
     const char *psz_protocol;
     const char *psz_service_name;
     bool        b_renderer;
-    vlc_renderer_flags e_renderer_flags;
+    int         i_renderer_flags;
 } protocols[] = {
     { "ftp", "_ftp._tcp.local", false, 0 },
     { "smb", "_smb._tcp.local", false, 0 },
@@ -183,7 +183,7 @@ items_add_input( services_discovery_t *p_sd, char *psz_uri,
 static int
 items_add_renderer( services_discovery_t *p_sd, const char *psz_module,
                     const char *psz_host, uint16_t i_port, const char *psz_name,
-                    vlc_renderer_flags e_flags )
+                    int i_flags )
 {
     services_discovery_sys_t *p_sys = p_sd->p_sys;
 
@@ -192,7 +192,7 @@ items_add_renderer( services_discovery_t *p_sd, const char *psz_module,
         return VLC_ENOMEM;
 
     vlc_renderer_item *p_renderer_item =
-        vlc_renderer_item_new( psz_name, psz_module, psz_host, i_port, e_flags );
+        vlc_renderer_item_new( psz_name, psz_module, psz_host, i_port, i_flags );
     if( p_renderer_item == NULL )
     {
         free( p_item );
@@ -250,8 +250,7 @@ items_input_exists( services_discovery_t *p_sd, const char *psz_uri )
 
 static bool
 items_renderer_exists( services_discovery_t *p_sd, const char *psz_module,
-                       const char *psz_host, uint16_t i_port,
-                       vlc_renderer_flags e_flags )
+                       const char *psz_host, uint16_t i_port, int i_flags )
 {
     services_discovery_sys_t *p_sys = p_sd->p_sys;
 
@@ -261,7 +260,7 @@ items_renderer_exists( services_discovery_t *p_sd, const char *psz_module,
 
         if( p_item->p_renderer_item != NULL
          && vlc_renderer_item_equals( p_item->p_renderer_item, psz_module,
-                                      psz_host, i_port, e_flags ) )
+                                      psz_host, i_port, i_flags ) )
         {
             p_item->i_last_seen = mdate();
             return true;
@@ -350,7 +349,7 @@ new_entries_cb( void *p_this, int i_status,
                     p_srv->psz_protocol = protocols[i].psz_protocol;
                     p_srv->i_port = p_entry->data.SRV.port;
                     p_srv->b_renderer = protocols[i].b_renderer;
-                    p_srv->e_renderer_flags = protocols[i].e_renderer_flags;
+                    p_srv->i_renderer_flags = protocols[i].i_renderer_flags;
                     ++i_srv_idx;
                     break;
                 }
@@ -409,14 +408,14 @@ new_entries_cb( void *p_this, int i_status,
             if( strcmp( p_srv->psz_protocol, "chromecast" ) == 0
              && ( psz_model == NULL
                || strcasecmp( psz_model, "Chromecast Audio" ) != 0 ) )
-                p_srv->e_renderer_flags |= VLC_RENDERER_CAN_VIDEO;
+                p_srv->i_renderer_flags |= VLC_RENDERER_CAN_VIDEO;
 
             if( items_renderer_exists( p_sd, p_srv->psz_protocol, psz_ip,
-                                       p_srv->i_port, p_srv->e_renderer_flags ) )
+                                       p_srv->i_port, p_srv->i_renderer_flags ) )
                 continue;
             items_add_renderer( p_sd, p_srv->psz_protocol, psz_ip,
                                 p_srv->i_port, p_srv->psz_device_name,
-                                p_srv->e_renderer_flags );
+                                p_srv->i_renderer_flags );
         }
     }
 
