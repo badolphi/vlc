@@ -38,8 +38,8 @@ struct vlc_renderer_item
     char *psz_host;
     char *psz_name;
     char *psz_option;
+    int i_flags;
     atomic_uint refs;
-    vlc_renderer_flags e_flags;
     uint16_t i_port;
 };
 
@@ -52,8 +52,7 @@ struct renderer_priv
 
 vlc_renderer_item *
 vlc_renderer_item_new(const char *psz_name, const char *psz_module,
-                      const char *psz_host, uint16_t i_port,
-                      vlc_renderer_flags e_flags)
+                      const char *psz_host, uint16_t i_port, int i_flags)
 {
     assert(psz_module != NULL && psz_host != NULL);
 
@@ -67,7 +66,7 @@ vlc_renderer_item_new(const char *psz_name, const char *psz_module,
      || (p_item->psz_host = strdup(psz_host)) == NULL
      || (p_item->psz_name = strdup(psz_name)) == NULL
      || asprintf(&p_item->psz_option, "%s{host=%s,port=%u,name=%s,flags=%d}",
-                 psz_module, psz_host, i_port, psz_name, e_flags) == -1)
+                 psz_module, psz_host, i_port, psz_name, i_flags) == -1)
     {
         free(p_item->psz_module);
         free(p_item->psz_host);
@@ -76,7 +75,7 @@ vlc_renderer_item_new(const char *psz_name, const char *psz_module,
         return NULL;
     }
     p_item->i_port = i_port;
-    p_item->e_flags = e_flags;
+    p_item->i_flags = i_flags;
     atomic_init(&p_item->refs, 1);
     return p_item;
 }
@@ -86,7 +85,7 @@ renderer_item_new_from_option(const char *psz_renderer)
 {
     config_chain_t *p_cfg = NULL;
     char *psz_module, *psz_host = NULL, *psz_name = NULL;
-    vlc_renderer_flags e_flags = 0;
+    int i_flags = 0;
     uint16_t i_port = 0;
     free(config_ChainCreate(&psz_module, &p_cfg, psz_renderer));
 
@@ -104,14 +103,14 @@ renderer_item_new_from_option(const char *psz_renderer)
                 i_port = i_val;
         }
         else if (!strcmp(p_cfg->psz_name, "flags"))
-            e_flags = atoi(p_cfg->psz_value);
+            i_flags = atoi(p_cfg->psz_value);
         p_read_cfg = p_read_cfg->p_next;
     }
 
     vlc_renderer_item *p_item = NULL;
     if (psz_module != NULL && psz_host != NULL)
         p_item = vlc_renderer_item_new(psz_name, psz_module, psz_host, i_port,
-                                       e_flags);
+                                       i_flags);
     free(psz_module);
     config_ChainDestroy( p_cfg );
 
@@ -129,13 +128,13 @@ vlc_renderer_item_name(const vlc_renderer_item *p_item)
 bool
 vlc_renderer_item_equals(const vlc_renderer_item *p_item,
                          const char *psz_module, const char *psz_host,
-                         uint16_t i_port, vlc_renderer_flags e_flags)
+                         uint16_t i_port, int i_flags)
 {
     assert(p_item != NULL);
     return (p_item->i_port == i_port || !p_item->i_port || !i_port)
             && !strcmp(p_item->psz_host, psz_host)
             && !strcmp(p_item->psz_module, psz_module)
-            && p_item->e_flags == e_flags;
+            && p_item->i_flags == i_flags;
 }
 
 const char *
@@ -154,12 +153,12 @@ vlc_renderer_item_port(const vlc_renderer_item *p_item)
     return p_item->i_port;
 }
 
-vlc_renderer_flags
+int
 vlc_renderer_item_flags(const vlc_renderer_item *p_item)
 {
     assert(p_item != NULL);
 
-    return p_item->e_flags;
+    return p_item->i_flags;
 }
 
 const char *

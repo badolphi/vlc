@@ -33,10 +33,8 @@
 typedef struct vlc_renderer_item vlc_renderer_item;
 
 /** Renderer flags */
-typedef enum {
-    VLC_RENDERER_CAN_AUDIO  = 0x0001,  /**< Renderer can render audio */
-    VLC_RENDERER_CAN_VIDEO  = 0x0002,  /**< Renderer can render video */
-} vlc_renderer_flags;
+#define VLC_RENDERER_CAN_AUDIO 0x0001
+#define VLC_RENDERER_CAN_VIDEO 0x0002
 
 /**
  * Create a new renderer item
@@ -50,8 +48,7 @@ typedef enum {
  */
 VLC_API vlc_renderer_item *
 vlc_renderer_item_new(const char *psz_name, const char *psz_module,
-                      const char *psz_host, uint16_t i_port,
-                      vlc_renderer_flags e_flags) VLC_USED;
+                      const char *psz_host, uint16_t i_port, int i_flags) VLC_USED;
 
 /**
  * Hold a renderer item, i.e. creates a new reference
@@ -71,7 +68,7 @@ vlc_renderer_item_release(vlc_renderer_item *p_item);
 VLC_API bool
 vlc_renderer_item_equals(const vlc_renderer_item *p_item,
                          const char *psz_module, const char *psz_host,
-                         uint16_t i_port, vlc_renderer_flags e_flags);
+                         uint16_t i_port, int i_flags);
 
 /**
  * Get the name of a renderer item
@@ -94,7 +91,7 @@ vlc_renderer_item_port(const vlc_renderer_item *p_item);
 /**
  * Get the flags of a renderer item
  */
-VLC_API vlc_renderer_flags
+VLC_API int
 vlc_renderer_item_flags(const vlc_renderer_item *p_item);
 
 /**
