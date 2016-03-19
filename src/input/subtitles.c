@@ -42,11 +42,6 @@
 #include "input_internal.h"
 
 /**
- * We are not going to autodetect more subtitle files than this.
- */
-#define MAX_SUBTITLE_FILES 128
-
-/**
  * The possible extensions for subtitle files we support
  */
 static const char sub_exts[][6] = {
@@ -138,30 +133,6 @@ enum
     SUB_PRIORITY_MATCH_LEFT  = 3,
     SUB_PRIORITY_MATCH_ALL   = 4,
 };
-typedef struct
-{
-    int priority;
-    char *psz_fname;
-    char *psz_ext;
-} vlc_subfn_t;
-
-static int compare_sub_priority( const void *a, const void *b )
-{
-    const vlc_subfn_t *p0 = a;
-    const vlc_subfn_t *p1 = b;
-
-    if( p0->priority > p1->priority )
-        return -1;
-
-    if( p0->priority < p1->priority )
-        return 1;
-
-#ifdef HAVE_STRCOLL
-    return strcoll( p0->psz_fname, p1->psz_fname);
-#else
-    return strcmp( p0->psz_fname, p1->psz_fname);
-#endif
-}
 
 /*
  * Check if a file ends with a subtitle extension
@@ -226,6 +197,76 @@ static char **paths_to_list( const char *psz_dir, char *psz_path )
     return subdirs;
 }
 
+subtitle_t *subtitle_New( const char *psz_path, uint8_t i_priority, const char *psz_ext,
+                          bool b_rejected )
+{
+    subtitle_t *sub = malloc( sizeof( *sub ) );
+    if( !sub )
+        return NULL;
+
+    sub->psz_path = ( psz_path == NULL ) ? NULL : strdup( psz_path );
+    sub->i_priority = i_priority;
+    sub->psz_ext = ( psz_ext == NULL ) ? NULL : strdup( psz_ext );
+    sub->b_rejected = b_rejected;
+    return sub;
+}
+
+void subtitle_Delete( subtitle_t *p_subtitle )
+{
+    free( p_subtitle->psz_path );
+    free( p_subtitle->psz_ext );
+    free( p_subtitle );
+}
+
+subtitle_list_t *subtitle_list_New()
+{
+    subtitle_list_t *list = malloc( sizeof( *list ) );
+
+    if( !list )
+        return NULL;
+
+    list->i_subtitles = 0;
+    list->pp_subtitles = NULL;
+
+    return list;
+}
+
+void subtitle_list_Delete( subtitle_list_t *p_list )
+{
+    for( int i = 0; i < p_list->i_subtitles; i++ )
+        subtitle_Delete( p_list->pp_subtitles[i] );
+    TAB_CLEAN( p_list->i_subtitles, p_list->pp_subtitles );
+}
+
+void subtitle_list_AppendItem( subtitle_list_t *p_list, subtitle_t *p_subtitle )
+{
+    INSERT_ELEM( p_list->pp_subtitles, p_list->i_subtitles, p_list->i_subtitles,
+                 p_subtitle );
+}
+
+static int subtitle_Compare( const void *a, const void *b )
+{
+    const subtitle_t *sub0 = a;
+    const subtitle_t *sub1 = b;
+
+    if( sub0->i_priority > sub1->i_priority )
+        return -1;
+
+    if( sub0->i_priority < sub1->i_priority )
+        return 1;
+
+#ifdef HAVE_STRCOLL
+    return strcoll( sub0->psz_path, sub1->psz_path );
+#else
+    return strcmp( sub0->psz_path, sub1->psz_path );
+#endif
+}
+
+void subtitle_list_Sort( subtitle_list_t *p_list )
+{
+    qsort( p_list->pp_subtitles, p_list->i_subtitles, sizeof(subtitle_t),
+           subtitle_Compare );
+}
 
 /**
  * Detect subtitle files.
@@ -239,22 +280,21 @@ static char **paths_to_list( const char *psz_dir, char *psz_path )
  * \param p_this the calling \ref input_thread_t
  * \param psz_path a list of subdirectories (separated by a ',') to look in.
  * \param psz_name the complete filename to base the search on.
- * \return a NULL terminated array of filenames with detected possible subtitles.
- * The array contains max MAX_SUBTITLE_FILES items and you need to free it after use.
+ * \return a list of subtitles with detected possible subtitles.
+ * The array needs to be deleted after use.
  */
-char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
+subtitle_list_t *subtitles_Detect( input_thread_t *p_this, char *psz_path,
                          const char *psz_name_org )
 {
     int i_fuzzy = var_GetInteger( p_this, "sub-autodetect-fuzzy" );
     if ( i_fuzzy == 0 )
         return NULL;
-    int j, i_result2, i_sub_count, i_fname_len;
+    int j, i_fname_len;
     char *f_fname_noext = NULL, *f_fname_trim = NULL;
 
     char **subdirs; /* list of subdirectories to look in */
 
-    vlc_subfn_t *result = NULL; /* unsorted results */
-    char **result2; /* sorted results */
+    subtitle_list_t *result;
 
     if( !psz_name_org )
         return NULL;
@@ -297,9 +337,9 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
     strcpy_strip_ext( f_fname_noext, f_fname );
     strcpy_trim( f_fname_trim, f_fname_noext );
 
-    result = calloc( MAX_SUBTITLE_FILES+1, sizeof(vlc_subfn_t) ); /* We check it later (simplify code) */
+    result = subtitle_list_New(); /* We check it later (simplify code) */
     subdirs = paths_to_list( f_dir, psz_path );
-    for( j = -1, i_sub_count = 0; (j == -1) || ( j >= 0 && subdirs != NULL && subdirs[j] != NULL ); j++ )
+    for( j = -1; (j == -1) || ( j >= 0 && subdirs != NULL && subdirs[j] != NULL ); j++ )
     {
         const char *psz_dir = (j < 0) ? f_dir : subdirs[j];
         if( psz_dir == NULL || ( j >= 0 && !strcmp( psz_dir, f_dir ) ) )
@@ -313,7 +353,7 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
         msg_Dbg( p_this, "looking for a subtitle file in %s", psz_dir );
 
         const char *psz_name;
-        while( (psz_name = vlc_readdir( dir )) && i_sub_count < MAX_SUBTITLE_FILES )
+        while( (psz_name = vlc_readdir( dir )) )
         {
             if( psz_name[0] == '.' || !subtitles_Filter( psz_name ) )
                 continue;
@@ -370,11 +410,8 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
                     msg_Dbg( p_this,
                             "autodetected subtitle: %s with priority %d",
                             path, i_prio );
-                    result[i_sub_count].priority = i_prio;
-                    result[i_sub_count].psz_fname = path;
-                    path = NULL;
-                    result[i_sub_count].psz_ext = strdup(tmp_fname_ext);
-                    i_sub_count++;
+                    subtitle_t *sub = subtitle_New( path, i_prio, tmp_fname_ext, false );
+                    subtitle_list_AppendItem( result, sub );
                 }
                 free( path );
             }
@@ -395,49 +432,48 @@ char **subtitles_Detect( input_thread_t *p_this, char *psz_path,
     if( !result )
         return NULL;
 
-    qsort( result, i_sub_count, sizeof(vlc_subfn_t), compare_sub_priority );
-
-    result2 = calloc( i_sub_count + 1, sizeof(char*) );
-
-    for( j = 0, i_result2 = 0; j < i_sub_count && result2 != NULL; j++ )
+    for( int i = 0; i < result->i_subtitles; i++ )
     {
-        bool b_reject = false;
+        subtitle_t *p_sub = result->pp_subtitles[i];
 
-        if( !result[j].psz_fname || !result[j].psz_ext ) /* memory out */
-            break;
-
-        if( !strcasecmp( result[j].psz_ext, "sub" ) )
+        if( !p_sub->psz_path || !p_sub->psz_ext )
         {
-            int i;
-            for( i = 0; i < i_sub_count; i++ )
+            p_sub->b_rejected = true;
+            continue;
+        }
+
+        if( !strcasecmp( p_sub->psz_ext, "sub" ) )
+        {
+            for( int j = 0; i < result->i_subtitles; j++ )
             {
-                if( result[i].psz_fname && result[i].psz_ext &&
-                    !strncasecmp( result[j].psz_fname, result[i].psz_fname,
-                                  strlen( result[j].psz_fname) - 3 ) &&
-                    !strcasecmp( result[i].psz_ext, "idx" ) )
+                subtitle_t *p_sub_inner = result->pp_subtitles[j];
+
+                /* check that we have all the info we need */
+                if( !p_sub_inner->psz_path || !p_sub_inner->psz_ext )
+                    continue;
+
+                /* check that both paths have the same length */
+                if( strlen( p_sub->psz_path ) != strlen( p_sub_inner->psz_path ) )
+                    continue;
+
+                /* check that the filenames without extension match */
+                if( strncasecmp( p_sub->psz_path, p_sub_inner->psz_path,
+                    strlen( p_sub->psz_path ) - 3 ) )
+                    continue;
+
+                /* check that we have an idx file */
+                if( !strcasecmp( p_sub_inner->psz_ext, "idx" ) )
+                {
+                    p_sub->b_rejected = true;
                     break;
+                }
             }
-            if( i < i_sub_count )
-                b_reject = true;
         }
-        else if( !strcasecmp( result[j].psz_ext, "cdg" ) )
+        else if( !strcasecmp( p_sub->psz_ext, "cdg" ) )
         {
-            if( result[j].priority < SUB_PRIORITY_MATCH_ALL )
-                b_reject = true;
+            if( p_sub->i_priority < SUB_PRIORITY_MATCH_ALL )
+                p_sub->b_rejected = true;
         }
-
-        /* */
-        if( !b_reject )
-            result2[i_result2++] = strdup( result[j].psz_fname );
     }
-
-    for( j = 0; j < i_sub_count; j++ )
-    {
-        free( result[j].psz_fname );
-        free( result[j].psz_ext );
-    }
-    free( result );
-
-    return result2;
+    return result;
 }
-

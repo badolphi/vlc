@@ -28,6 +28,8 @@
 # include "config.h"
 #endif
 
+#include <ctype.h>
+
 #include <vlc_common.h>
 #include <vlc_demux.h>
 
@@ -65,10 +67,15 @@ static struct {
     int i_type;
     const char *const *ppsz_exts;
 } p_slave_list[] = {
-    { INPUT_ITEM_SLAVE_SPU, ppsz_sub_exts },
-    { INPUT_ITEM_SLAVE_AUDIO, ppsz_audio_exts },
+    { SLAVE_TYPE_SPU, ppsz_sub_exts },
+    { SLAVE_TYPE_AUDIO, ppsz_audio_exts },
 };
 #define SLAVE_TYPE_COUNT (sizeof(p_slave_list) / sizeof(*p_slave_list))
+
+typedef struct {
+    int                 i_slaves;
+    input_item_slave_t  **pp_slaves;
+} input_item_slave_list_t;
 
 int Import_Dir ( vlc_object_t *p_this)
 {
@@ -145,7 +152,7 @@ static bool is_slave( const char *psz_name, int *p_slave_type )
         for( const char *const *ppsz_slave_ext = p_slave_list[i].ppsz_exts;
              *ppsz_slave_ext != NULL; ppsz_slave_ext++ )
         {
-            if( strncasecmp( psz_ext, *ppsz_slave_ext, i_extlen ) )
+            if( !strncasecmp( psz_ext, *ppsz_slave_ext, i_extlen ) )
             {
                 *p_slave_type = p_slave_list[i].i_type;
                 return true;
@@ -192,24 +199,137 @@ static int compar_version( input_item_t *p1, input_item_t *p2 )
     return strverscmp( p1->psz_name, p2->psz_name );
 }
 
-static void attach_salves( demux_t *p_demux, input_item_node_t *p_node,
-                           input_item_node_t *p_slaves_node )
+static char *name_from_uri(const char * psz_uri)
 {
-    char *psz_sub_autodetect_paths =
-        var_InheritString( p_demux, "sub-autodetect-path" );
-    free( psz_sub_autodetect_paths );
-    /* TODO: associate slaves with items here */
-    for( int i = 0; i < p_slaves_node->i_children; i++ )
+    char *psz_filename = strdup( psz_uri );
+    if( !psz_filename )
+        return NULL;
+
+    char *psz_ptr = psz_filename;
+
+    /* remove folders */
+    char *psz_slash = strrchr( psz_ptr, '/' );
+    if( psz_slash )
+        psz_ptr = psz_slash + 1;
+
+    /* remove extension */
+    char *psz_dot = strrchr( psz_ptr, '.' );
+    if( psz_dot )
+        *psz_dot = '\0';
+
+    /* remove leading white spaces */
+    while( *psz_ptr != '\0' && *psz_ptr == ' ' )
+        psz_ptr++;
+
+    /* remove trailing white spaces */
+    int i = strlen( psz_ptr ) - 1;
+    while( psz_ptr[i] == ' ' && i >= 0)
+        psz_ptr[i--] = '\0';
+
+    /* convert to lower case */
+    char *p = psz_ptr;
+    while( *p != '\0' )
     {
+        *p = tolower(*p);
+        p++;
     }
 
+    psz_ptr = strdup( psz_ptr );
+    free( psz_filename );
+    return psz_ptr;
+}
+
+static uint8_t calculate_slave_priority(input_item_t *p_item, input_item_slave_t *p_slave)
+{
+    char *psz_item_name = name_from_uri( p_item->psz_uri );
+    char *psz_slave_name = name_from_uri( p_slave->psz_uri );
+
+    if( !psz_item_name || !psz_slave_name)
+    {
+        p_slave->i_priority = SLAVE_PRIORITY_NONE;
+        goto done;
+    }
+
+    /* check if the names match exactly */
+    if( !strcmp( psz_item_name, psz_slave_name ) )
+    {
+        p_slave->i_priority = SLAVE_PRIORITY_MATCH_ALL;
+        goto done;
+    }
+
+    /* check if the item name is a substring of the slave name */
+    const char *psz_sub = strstr( psz_slave_name, psz_item_name );
+
+    if( psz_sub )
+    {
+        /* check if the item name was found at the end of the slave name */
+        if( strlen( psz_sub + strlen( psz_item_name ) ) == 0 )
+        {
+            p_slave->i_priority = SLAVE_PRIORITY_MATCH_RIGHT;
+            goto done;
+        }
+        else
+        {
+            p_slave->i_priority = SLAVE_PRIORITY_MATCH_LEFT;
+            goto done;
+        }
+    }
+    p_slave->i_priority = SLAVE_PRIORITY_MATCH_NONE;
+done:
+    free( psz_item_name );
+    free( psz_slave_name );
+    return p_slave->i_priority;
+}
+
+static void attach_slaves( demux_t * p_demux, input_item_node_t *p_node,
+                           input_item_slave_list_t *p_slaves )
+{
+    int i_fuzzy = var_InheritInteger( p_demux, "sub-autodetect-fuzzy" );
+    if ( i_fuzzy == 0 )
+        return;
+    for( int i = 0; i < p_node->i_children; i++ )
+    {
+        input_item_t *p_item = p_node->pp_children[i]->p_item;
+        for( int j = 0; j < p_slaves->i_slaves; j++ )
+        {
+            input_item_slave_t *p_slave = p_slaves->pp_slaves[j];
+            if( calculate_slave_priority( p_item, p_slave ) >= i_fuzzy )
+                input_item_AddSlave( p_item, p_slave );
+        }
+    }
+}
+
+static input_item_slave_list_t *slave_list_New()
+{
+    input_item_slave_list_t *list = malloc( sizeof( *list ) );
+
+    if( !list )
+        return NULL;
+
+    list->i_slaves = 0;
+    list->pp_slaves = NULL;
+
+    return list;
+}
+
+static void slave_list_Delete(input_item_slave_list_t *p_list)
+{
+    for( int i = 0; i < p_list->i_slaves; i++ )
+        input_item_slave_Delete( p_list->pp_slaves[i] );
+    TAB_CLEAN( p_list->i_slaves, p_list->pp_slaves );
+}
+
+static void slave_list_AppendItem(input_item_slave_list_t *p_list, input_item_slave_t *p_slave)
+{
+    INSERT_ELEM( p_list->pp_slaves, p_list->i_slaves, p_list->i_slaves, p_slave );
 }
 
 static int Demux( demux_t *p_demux )
 {
     int i_ret = VLC_SUCCESS;
     input_item_t *p_input;
-    input_item_node_t *p_node, *p_slaves_node = NULL;
+    input_item_node_t *p_node = NULL;
+    input_item_slave_list_t *p_slaves = NULL;
     input_item_t *p_item;
     char *psz_ignored_exts;
     bool b_show_hiddenfiles;
@@ -225,7 +345,6 @@ static int Demux( demux_t *p_demux )
 
     while( !i_ret && ( p_item = stream_ReadDir( p_demux->s ) ) )
     {
-        int i_slave_type;
         int i_name_len = p_item->psz_name ? strlen( p_item->psz_name ) : 0;
 
         /* skip null, "." and ".." and hidden files if option is activated */
@@ -234,19 +353,27 @@ static int Demux( demux_t *p_demux )
          || ( !b_show_hiddenfiles && p_item->psz_name[0] == '.' ) )
             goto skip_item;
 
+        /* Find slaves */
+        int i_slave_type;
         if( is_slave( p_item->psz_name, &i_slave_type ) )
         {
-            if( p_slaves_node == NULL )
+            if( p_slaves == NULL )
             {
-                p_slaves_node = input_item_node_Create( p_input );
-                if( p_slaves_node == NULL )
+                p_slaves = slave_list_New();
+                if( !p_slaves )
                 {
                     i_ret = VLC_ENOMEM;
                     goto skip_item;
                 }
             }
-            if( !input_item_node_AppendItem( p_slaves_node, p_item ) )
+
+            input_item_slave_t *p_slave = input_item_slave_New( p_item->psz_uri,
+                                                                i_slave_type,
+                                                                SLAVE_PRIORITY_NONE );
+            if( !p_slave )
                 i_ret = VLC_ENOMEM;
+            else
+                slave_list_AppendItem( p_slaves, p_slave );
             goto skip_item;
         }
 
@@ -268,15 +395,15 @@ skip_item:
     {
         msg_Warn( p_demux, "unable to read directory" );
         input_item_node_Delete( p_node );
-        if( p_slaves_node != NULL)
-            input_item_node_Delete( p_slaves_node );
+        if( p_slaves != NULL)
+            slave_list_Delete( p_slaves );
         return i_ret;
     }
 
-    if( p_slaves_node != NULL)
+    if( p_slaves )
     {
-        attach_slaves( p_node, p_slaves_node );
-        input_item_node_Delete( p_slaves_node );
+        attach_slaves( p_demux, p_node, p_slaves );
+        slave_list_Delete( p_slaves );
     }
 
     if( !p_demux->p_sys->b_dir_sorted )

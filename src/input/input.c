@@ -959,23 +959,87 @@ static void LoadSubtitles( input_thread_t *p_input )
 
     if( var_GetBool( p_input, "sub-autodetect-file" ) )
     {
+        subtitle_list_t *p_all_subs = subtitle_list_New();
+
+        /* Add local subtitles */
         char *psz_autopath = var_GetNonEmptyString( p_input, "sub-autodetect-path" );
-        char **ppsz_subs = subtitles_Detect( p_input, psz_autopath,
+        subtitle_list_t *p_subs = subtitles_Detect( p_input, psz_autopath,
                                              p_input->p->p_item->psz_uri );
         free( psz_autopath );
 
-        for( int i = 0; ppsz_subs && ppsz_subs[i]; i++ )
+        if( p_subs )
         {
-            if( !psz_subtitle || strcmp( psz_subtitle, ppsz_subs[i] ) )
+            for( int i = 0; i < p_subs->i_subtitles; i++ )
             {
-                i_flags |= SUB_CANFAIL;
-                input_SubtitleFileAdd( p_input, ppsz_subs[i], i_flags, false );
-                i_flags = SUB_NOFLAG;
+                subtitle_t *p_curr = p_subs->pp_subtitles[i];
+                if( !psz_subtitle || strcmp( psz_subtitle, p_curr->psz_path ) )
+                {
+                    subtitle_t *p_sub = subtitle_New( p_curr->psz_path,
+                                                      p_curr->i_priority,
+                                                      p_curr->psz_ext,
+                                                      p_curr->b_rejected );
+                    subtitle_list_AppendItem( p_all_subs, p_sub );
+                }
             }
-
-            free( ppsz_subs[i] );
+            subtitle_list_Delete( p_subs );
         }
-        free( ppsz_subs );
+
+        /* Add subtitles found by the directory demuxer */
+        input_item_t *p_item = p_input->p->p_item;
+        for( int i = 0; i < p_item->i_slaves; i++ )
+        {
+            input_item_slave_t *p_slave = p_item->pp_slaves[i];
+            if( p_slave->i_type == SLAVE_TYPE_SPU )
+            {
+                bool added = false;
+                const char *psz_path = strstr( p_slave->psz_uri, "file://" );
+                if( psz_path )
+                {
+                    psz_path += strlen( "file://" );
+
+                    /* check that we did not add the slave through sub-autodetect-path */
+                    for( int i = 0; i < p_all_subs->i_subtitles; i++ )
+                    {
+                        if( !strcmp( p_all_subs->pp_subtitles[i]->psz_path, psz_path ) )
+                        {
+                            added = true;
+                            break;
+                        }
+                    }
+
+                    /* check that we did not add the slave through sub-file */
+                    if( psz_subtitle && !strcmp( psz_subtitle, psz_path ) )
+                        added = true;
+                }
+                if( !added )
+                {
+                    subtitle_t *p_sub = subtitle_New( p_slave->psz_uri,
+                                                      p_slave->i_priority,
+                                                      NULL,
+                                                      false );
+                    subtitle_list_AppendItem( p_all_subs, p_sub );
+                }
+            }
+        }
+
+        subtitle_list_Sort( p_all_subs );
+
+        /* add all detected subtitles */
+        for( int i = 0; i < p_all_subs->i_subtitles; i++ )
+        {
+            if( p_all_subs->pp_subtitles[i]->b_rejected )
+                continue;
+
+            const char *psz_path = p_all_subs->pp_subtitles[i]->psz_path;
+            i_flags |= SUB_CANFAIL;
+            if( strstr( psz_path, "://" ) != NULL)
+                input_SubtitleAdd( p_input, psz_path, i_flags );
+            else
+                input_SubtitleFileAdd( p_input, psz_path, i_flags, false );
+            i_flags = SUB_NOFLAG;
+        }
+
+        subtitle_list_Delete( p_all_subs );
     }
     free( psz_subtitle );
 
