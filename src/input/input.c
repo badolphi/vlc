@@ -960,22 +960,26 @@ static void LoadSubtitles( input_thread_t *p_input )
     if( var_GetBool( p_input, "sub-autodetect-file" ) )
     {
         char *psz_autopath = var_GetNonEmptyString( p_input, "sub-autodetect-path" );
-        char **ppsz_subs = subtitles_Detect( p_input, psz_autopath,
-                                             p_input->p->p_item->psz_uri );
-        free( psz_autopath );
+        subtitle_list p_subs;
 
-        for( int i = 0; ppsz_subs && ppsz_subs[i]; i++ )
+        if( subtitles_Detect( p_input, psz_autopath, p_input->p->p_item->psz_uri,
+                              &p_subs ) )
         {
-            if( !psz_subtitle || strcmp( psz_subtitle, ppsz_subs[i] ) )
-            {
-                i_flags |= SUB_CANFAIL;
-                input_SubtitleFileAdd( p_input, ppsz_subs[i], i_flags, false );
-                i_flags = SUB_NOFLAG;
-            }
+            subtitle_list_Sort( &p_subs );
 
-            free( ppsz_subs[i] );
+            for( int i = 0; i < p_subs.i_subtitles; i++ )
+            {
+                subtitle *p_curr = p_subs.pp_subtitles[i];
+                if( !psz_subtitle || strcmp( psz_subtitle, p_curr->psz_path ) )
+                {
+                    i_flags |= SUB_CANFAIL;
+                    input_SubtitleFileAdd( p_input, p_curr->psz_path, i_flags, false );
+                    i_flags = SUB_NOFLAG;
+                }
+            }
         }
-        free( ppsz_subs );
+        subtitle_list_Clear( &p_subs );
+        free( psz_autopath );
     }
     free( psz_subtitle );
 
