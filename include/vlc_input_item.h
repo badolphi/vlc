@@ -51,6 +51,13 @@ struct info_category_t
     struct info_t **pp_infos;     /**< Pointer to an array of infos */
 };
 
+typedef struct
+{
+    char        *psz_uri;   /**< Slave uri */
+    uint8_t     i_type;     /**< Slave type (spu, audio, ... see slave_type_e) */
+    uint8_t     i_priority; /**< Slave priority */
+} input_item_slave;
+
 /**
  * Describes an input and is used to spawn input_thread_t objects.
  */
@@ -83,6 +90,9 @@ struct input_item_t
     int         i_epg;               /**< Number of EPG entries */
     vlc_epg_t   **pp_epg;            /**< EPG entries */
 
+    int         i_slaves;            /**< Number of slaves */
+    input_item_slave **pp_slaves;    /**< Slave entries */
+
     vlc_event_manager_t event_manager;
 
     vlc_mutex_t lock;                 /**< Lock for the item */
@@ -114,6 +124,21 @@ enum input_item_type_e
 
     /* This one is not a real type but the number of input_item types. */
     ITEM_TYPE_NUMBER
+};
+
+enum slave_type_e
+{
+    SLAVE_TYPE_SPU,
+    SLAVE_TYPE_AUDIO,
+};
+
+enum slave_priotity_e
+{
+    SLAVE_PRIORITY_NONE        = 0,
+    SLAVE_PRIORITY_MATCH_NONE  = 1,
+    SLAVE_PRIORITY_MATCH_RIGHT = 2,
+    SLAVE_PRIORITY_MATCH_LEFT  = 3,
+    SLAVE_PRIORITY_MATCH_ALL   = 4,
 };
 
 typedef int (*input_item_compar_cb)( input_item_t *, input_item_t * );
@@ -206,6 +231,15 @@ VLC_API int input_item_AddOption(input_item_t *, const char *, unsigned i_flags 
 VLC_API int input_item_AddOpaque(input_item_t *, const char *, void *);
 
 void input_item_ApplyOptions(vlc_object_t *, input_item_t *);
+
+VLC_API input_item_slave *input_item_slave_New(const char *, uint8_t, uint8_t);
+VLC_API void input_item_slave_Delete(input_item_slave *);
+
+/**
+ * This function allows adding a slave to an existing input item.
+ * The slave is owned by the input item after this call.
+ */
+VLC_API int input_item_AddSlave(input_item_t *, input_item_slave *);
 
 /* */
 VLC_API bool input_item_HasErrorWhenReading( input_item_t * );

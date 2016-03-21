@@ -495,6 +495,10 @@ void input_item_Release( input_item_t *p_item )
         info_category_Delete( p_item->pp_categories[i] );
     TAB_CLEAN( p_item->i_categories, p_item->pp_categories );
 
+    for( int i = 0; i < p_item->i_slaves; i++ )
+        input_item_slave_Delete( p_item->pp_slaves[i] );
+    TAB_CLEAN( p_item->i_slaves, p_item->pp_slaves );
+
     vlc_mutex_destroy( &p_item->lock );
     free( owner );
 }
@@ -566,6 +570,38 @@ void input_item_ApplyOptions(vlc_object_t *obj, input_item_t *item)
     }
 
     vlc_mutex_unlock(&item->lock);
+}
+
+input_item_slave *input_item_slave_New(const char *psz_uri, uint8_t i_type,
+                                       uint8_t i_priority)
+{
+    input_item_slave *slave = malloc( sizeof( *slave ) );
+    if( !slave )
+        return NULL;
+
+    slave->psz_uri = ( psz_uri == NULL ) ? NULL : strdup( psz_uri );
+    slave->i_type = i_type;
+    slave->i_priority = i_priority;
+    return slave;
+}
+
+void input_item_slave_Delete(input_item_slave *p_slave)
+{
+    free( p_slave->psz_uri );
+    free( p_slave );
+}
+
+int input_item_AddSlave(input_item_t *p_input, input_item_slave *p_slave)
+{
+    if( p_input == NULL || p_slave == NULL )
+        return VLC_EGENERIC;
+
+    vlc_mutex_lock( &p_input->lock );
+
+    INSERT_ELEM( p_input->pp_slaves, p_input->i_slaves, p_input->i_slaves, p_slave );
+
+    vlc_mutex_unlock( &p_input->lock );
+    return VLC_SUCCESS;
 }
 
 static info_category_t *InputItemFindCat( input_item_t *p_item,
