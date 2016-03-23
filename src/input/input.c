@@ -979,6 +979,7 @@ static void LoadSubtitles( input_thread_t *p_input )
         free( psz_autopath );
 
         /* Add subtitles found by the directory demuxer */
+        vlc_mutex_lock( &p_input->p->p_item->lock );
         input_item_t *p_item = p_input->p->p_item;
         for( int i = 0; i < p_item->i_slaves; i++ )
         {
@@ -1014,6 +1015,7 @@ static void LoadSubtitles( input_thread_t *p_input )
                 }
             }
         }
+        vlc_mutex_unlock( &p_input->p->p_item->lock );
 
         subtitle_list_Sort( &p_subs );
 
