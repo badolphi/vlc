@@ -125,15 +125,6 @@ static int whiteonly( const char *s )
     return 1;
 }
 
-enum
-{
-    SUB_PRIORITY_NONE        = 0,
-    SUB_PRIORITY_MATCH_NONE  = 1,
-    SUB_PRIORITY_MATCH_RIGHT = 2,
-    SUB_PRIORITY_MATCH_LEFT  = 3,
-    SUB_PRIORITY_MATCH_ALL   = 4,
-};
-
 /*
  * Check if a file ends with a subtitle extension
  */
@@ -357,7 +348,7 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
             char tmp_fname_trim[strlen( psz_name ) + 1];
             char tmp_fname_ext[strlen( psz_name ) + 1];
             const char *tmp;
-            int i_prio = SUB_PRIORITY_NONE;
+            int i_prio = SLAVE_PRIORITY_NONE;
 
             /* retrieve various parts of the filename */
             strcpy_strip_ext( tmp_fname_noext, psz_name );
@@ -367,7 +358,7 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
             if( !strcmp( tmp_fname_trim, f_fname_trim ) )
             {
                 /* matches the movie name exactly */
-                i_prio = SUB_PRIORITY_MATCH_ALL;
+                i_prio = SLAVE_PRIORITY_MATCH_ALL;
             }
             else if( (tmp = strstr( tmp_fname_trim, f_fname_trim )) )
             {
@@ -376,19 +367,19 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
                 if( whiteonly( tmp ) )
                 {
                     /* chars in front of the movie name */
-                    i_prio = SUB_PRIORITY_MATCH_RIGHT;
+                    i_prio = SLAVE_PRIORITY_MATCH_RIGHT;
                 }
                 else
                 {
                     /* chars after (and possibly in front of)
                      * the movie name */
-                    i_prio = SUB_PRIORITY_MATCH_LEFT;
+                    i_prio = SLAVE_PRIORITY_MATCH_LEFT;
                 }
             }
             else if( j == -1 )
             {
                 /* doesn't contain the movie name, prefer files in f_dir over subdirs */
-                i_prio = SUB_PRIORITY_MATCH_NONE;
+                i_prio = SLAVE_PRIORITY_MATCH_NONE;
             }
             if( i_prio >= i_fuzzy )
             {
@@ -465,7 +456,7 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
         }
         else if( !strcasecmp( psz_ext, "cdg" ) )
         {
-            if( p_sub->i_priority < SUB_PRIORITY_MATCH_ALL )
+            if( p_sub->i_priority < SLAVE_PRIORITY_MATCH_ALL )
                 p_sub->b_rejected = true;
         }
     }
