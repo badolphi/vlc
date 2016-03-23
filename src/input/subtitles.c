@@ -439,7 +439,7 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
 
         if( !strcasecmp( psz_ext, "sub" ) )
         {
-            for( int j = 0; i < p_result->i_subtitles; j++ )
+            for( int j = 0; j < p_result->i_subtitles; j++ )
             {
                 subtitle *p_sub_inner = p_result->pp_subtitles[j];
 
