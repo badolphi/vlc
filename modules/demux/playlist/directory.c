@@ -294,9 +294,13 @@ static void attach_slaves( demux_t *p_demux, input_item_node_t *p_node,
         {
             input_item_slave *p_slave = p_slaves->pp_slaves[j];
             if( calculate_slave_priority( p_item, p_slave ) >= i_fuzzy )
-                input_item_AddSlave( p_item, p_slave );
-            else
-                input_item_slave_Delete( p_slave );
+            {
+                /* we need a copy because we cannot add the same slave to multiple items */
+                input_item_slave *p_copy = input_item_slave_New( p_slave->psz_uri,
+                                                                 p_slave->i_type,
+                                                                 p_slave->i_priority );
+                input_item_AddSlave( p_item, p_copy );
+            }
         }
     }
 }
@@ -387,6 +391,7 @@ skip_item:
     }
 
     attach_slaves( p_demux, p_node, &p_slaves );
+    slave_list_Clear( &p_slaves );
 
     if( !p_demux->p_sys->b_dir_sorted )
     {
