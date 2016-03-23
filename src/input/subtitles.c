@@ -188,76 +188,6 @@ static char **paths_to_list( const char *psz_dir, char *psz_path )
     return subdirs;
 }
 
-subtitle *subtitle_New( const char *psz_path, uint8_t i_priority )
-{
-    if( !psz_path )
-        return NULL;
-
-    subtitle *p_sub = malloc( sizeof( *p_sub ) );
-    if( !p_sub )
-        return NULL;
-
-    p_sub->psz_path = strdup( psz_path );
-    p_sub->i_priority = i_priority;
-    p_sub->b_rejected = false;
-
-    if( !p_sub->psz_path )
-    {
-        free( p_sub );
-        return NULL;
-    }
-    return p_sub;
-}
-
-void subtitle_Delete( subtitle *p_sub )
-{
-    free( p_sub->psz_path );
-    free( p_sub );
-}
-
-void subtitle_list_Init( subtitle_list *p_list )
-{
-    p_list->i_subtitles = 0;
-    p_list->pp_subtitles = NULL;
-}
-
-void subtitle_list_Clear( subtitle_list *p_list )
-{
-    for( int i = 0; i < p_list->i_subtitles; i++ )
-        subtitle_Delete( p_list->pp_subtitles[i] );
-    TAB_CLEAN( p_list->i_subtitles, p_list->pp_subtitles );
-}
-
-void subtitle_list_AppendItem( subtitle_list *p_list, subtitle *p_subtitle )
-{
-    INSERT_ELEM( p_list->pp_subtitles, p_list->i_subtitles, p_list->i_subtitles,
-                 p_subtitle );
-}
-
-static int subtitle_Compare( const void *a, const void *b )
-{
-    const subtitle *p_sub0 = a;
-    const subtitle *p_sub1 = b;
-
-    if( p_sub0->i_priority > p_sub1->i_priority )
-        return -1;
-
-    if( p_sub0->i_priority < p_sub1->i_priority )
-        return 1;
-
-#ifdef HAVE_STRCOLL
-    return strcoll( p_sub0->psz_path, p_sub1->psz_path );
-#else
-    return strcmp( p_sub0->psz_path, p_sub1->psz_path );
-#endif
-}
-
-void subtitle_list_Sort( subtitle_list *p_list )
-{
-    qsort( p_list->pp_subtitles, p_list->i_subtitles, sizeof(subtitle),
-           subtitle_Compare );
-}
-
 /**
  * Detect subtitle files.
  *
@@ -270,11 +200,11 @@ void subtitle_list_Sort( subtitle_list *p_list )
  * \param p_this the calling \ref input_thread_t
  * \param psz_path a list of subdirectories (separated by a ',') to look in.
  * \param psz_name_org the complete filename to base the search on.
- * \param p_result an initialized subtitle list to append detected subtitles to.
+ * \param p_result an initialized input item slave list to append detected subtitles to.
  * \return VLC_SUCCESS if ok
  */
 int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_name_org,
-                      subtitle_list *p_result )
+                      input_item_slave_list *p_result )
 {
     int i_fuzzy = var_GetInteger( p_this, "sub-autodetect-fuzzy" );
     if ( i_fuzzy == 0 )
@@ -403,8 +333,10 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
                     msg_Dbg( p_this,
                             "autodetected subtitle: %s with priority %d",
                             path, i_prio );
-                    subtitle *p_sub = subtitle_New( path, i_prio );
-                    subtitle_list_AppendItem( p_result, p_sub );
+                    input_item_slave *p_sub = input_item_slave_New( path, SLAVE_TYPE_SPU,
+                                                                    i_prio );
+                    if( p_sub )
+                        input_item_slave_list_AppendItem( p_result, p_sub );
                 }
                 free( path );
             }
@@ -422,15 +354,9 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
     free( f_fname_noext );
     free( psz_fname );
 
-    for( int i = 0; i < p_result->i_subtitles; i++ )
+    for( int i = 0; i < p_result->i_slaves; i++ )
     {
-        subtitle *p_sub = p_result->pp_subtitles[i];
-
-        if( !p_sub->psz_path )
-        {
-            p_sub->b_rejected = true;
-            continue;
-        }
+        input_item_slave *p_sub = p_result->pp_slaves[i];
 
         char *psz_ext = strrchr( p_sub->psz_path, '.' );
         if( !psz_ext )
@@ -439,9 +365,9 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
 
         if( !strcasecmp( psz_ext, "sub" ) )
         {
-            for( int j = 0; j < p_result->i_subtitles; j++ )
+            for( int j = 0; j < p_result->i_slaves; j++ )
             {
-                subtitle *p_sub_inner = p_result->pp_subtitles[j];
+                input_item_slave *p_sub_inner = p_result->pp_slaves[j];
 
                 /* check that the filenames without extension match */
                 if( strncasecmp( p_sub->psz_path, p_sub_inner->psz_path,

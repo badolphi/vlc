@@ -248,28 +248,7 @@ void input_ControlVarTitle( input_thread_t *, int i_title );
 void input_ConfigVarInit ( input_thread_t * );
 
 /* Subtitles */
-typedef struct
-{
-    char        *psz_path;
-    uint8_t     i_priority;
-    bool        b_rejected;
-} subtitle;
-
-typedef struct
-{
-    int         i_subtitles;
-    subtitle    **pp_subtitles;
-} subtitle_list;
-
-subtitle *subtitle_New( const char *, uint8_t );
-void subtitle_Delete( subtitle * );
-
-void subtitle_list_Init( subtitle_list *list );
-void subtitle_list_Clear( subtitle_list * );
-void subtitle_list_AppendItem( subtitle_list *, subtitle * );
-void subtitle_list_Sort( subtitle_list * );
-
-int subtitles_Detect( input_thread_t *, char *, const char *, subtitle_list * );
+int subtitles_Detect( input_thread_t *, char *, const char *, input_item_slave_list * );
 int subtitles_Filter( const char *);
 
 /* input.c */

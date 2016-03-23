@@ -72,11 +72,6 @@ static struct {
 };
 #define SLAVE_TYPE_COUNT (sizeof(p_slave_list) / sizeof(*p_slave_list))
 
-typedef struct {
-    int                 i_slaves;
-    input_item_slave    **pp_slaves;
-} input_item_slave_list;
-
 int Import_Dir ( vlc_object_t *p_this)
 {
     demux_t  *p_demux = (demux_t *)p_this;
@@ -242,7 +237,7 @@ static char *name_from_uri(const char *psz_uri)
 static uint8_t calculate_slave_priority(input_item_t *p_item, input_item_slave *p_slave)
 {
     char *psz_item_name = name_from_uri( p_item->psz_uri );
-    char *psz_slave_name = name_from_uri( p_slave->psz_uri );
+    char *psz_slave_name = name_from_uri( p_slave->psz_path );
 
     if( !psz_item_name || !psz_slave_name)
     {
@@ -296,31 +291,14 @@ static void attach_slaves( demux_t *p_demux, input_item_node_t *p_node,
             if( calculate_slave_priority( p_item, p_slave ) >= i_fuzzy )
             {
                 /* we need a copy because we cannot add the same slave to multiple items */
-                input_item_slave *p_copy = input_item_slave_New( p_slave->psz_uri,
+                input_item_slave *p_copy = input_item_slave_New( p_slave->psz_path,
                                                                  p_slave->i_type,
                                                                  p_slave->i_priority );
-                input_item_AddSlave( p_item, p_copy );
+                if( p_copy )
+                    input_item_AddSlave( p_item, p_copy );
             }
         }
     }
-}
-
-static void slave_list_Init(input_item_slave_list *p_list)
-{
-    p_list->i_slaves = 0;
-    p_list->pp_slaves = NULL;
-}
-
-static void slave_list_Clear(input_item_slave_list *p_list)
-{
-    for( int i = 0; i < p_list->i_slaves; i++ )
-        input_item_slave_Delete( p_list->pp_slaves[i] );
-    TAB_CLEAN( p_list->i_slaves, p_list->pp_slaves );
-}
-
-static void slave_list_AppendItem(input_item_slave_list *p_list, input_item_slave *p_slave)
-{
-    INSERT_ELEM( p_list->pp_slaves, p_list->i_slaves, p_list->i_slaves, p_slave );
 }
 
 static int Demux( demux_t *p_demux )
@@ -342,7 +320,7 @@ static int Demux( demux_t *p_demux )
     b_show_hiddenfiles = var_InheritBool( p_demux, "show-hiddenfiles" );
     psz_ignored_exts = var_InheritString( p_demux, "ignore-filetypes" );
 
-    slave_list_Init( &p_slaves );
+    input_item_slave_list_Init( &p_slaves );
 
     while( !i_ret && ( p_item = stream_ReadDir( p_demux->s ) ) )
     {
@@ -364,7 +342,7 @@ static int Demux( demux_t *p_demux )
             if( !p_slave )
                 i_ret = VLC_ENOMEM;
             else
-                slave_list_AppendItem( &p_slaves, p_slave );
+                input_item_slave_list_AppendItem( &p_slaves, p_slave );
             goto skip_item;
         }
 
@@ -386,12 +364,12 @@ skip_item:
     {
         msg_Warn( p_demux, "unable to read directory" );
         input_item_node_Delete( p_node );
-        slave_list_Clear( &p_slaves );
+        input_item_slave_list_Clear( &p_slaves );
         return i_ret;
     }
 
     attach_slaves( p_demux, p_node, &p_slaves );
-    slave_list_Clear( &p_slaves );
+    input_item_slave_list_Clear( &p_slaves );
 
     if( !p_demux->p_sys->b_dir_sorted )
     {

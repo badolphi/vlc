@@ -53,9 +53,10 @@ struct info_category_t
 
 typedef struct
 {
-    char        *psz_uri;   /**< Slave uri */
+    char        *psz_path;  /**< Slave path */
     uint8_t     i_type;     /**< Slave type (spu, audio, ... see slave_type_e) */
     uint8_t     i_priority; /**< Slave priority */
+    bool        b_rejected; /**< Whether the slave has been rejected */
 } input_item_slave;
 
 /**
@@ -140,6 +141,11 @@ enum slave_priotity_e
     SLAVE_PRIORITY_MATCH_LEFT  = 3,
     SLAVE_PRIORITY_MATCH_ALL   = 4,
 };
+
+typedef struct {
+    int                 i_slaves;
+    input_item_slave    **pp_slaves;
+} input_item_slave_list;
 
 typedef int (*input_item_compar_cb)( input_item_t *, input_item_t * );
 
@@ -234,6 +240,11 @@ void input_item_ApplyOptions(vlc_object_t *, input_item_t *);
 
 VLC_API input_item_slave *input_item_slave_New(const char *, uint8_t, uint8_t);
 VLC_API void input_item_slave_Delete(input_item_slave *);
+
+VLC_API void input_item_slave_list_Init(input_item_slave_list *);
+VLC_API void input_item_slave_list_Clear(input_item_slave_list *);
+VLC_API void input_item_slave_list_AppendItem(input_item_slave_list *, input_item_slave *);
+VLC_API void input_item_slave_list_Sort(input_item_slave_list *);
 
 /**
  * This function allows adding a slave to an existing input item.

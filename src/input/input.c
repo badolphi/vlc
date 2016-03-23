@@ -959,8 +959,8 @@ static void LoadSubtitles( input_thread_t *p_input )
 
     if( var_GetBool( p_input, "sub-autodetect-file" ) )
     {
-        subtitle_list p_subs;
-        subtitle_list_Init( &p_subs );
+        input_item_slave_list p_subs;
+        input_item_slave_list_Init( &p_subs );
 
         /* Add local subtitles */
         char *psz_autopath = var_GetNonEmptyString( p_input, "sub-autodetect-path" );
@@ -969,9 +969,9 @@ static void LoadSubtitles( input_thread_t *p_input )
                               &p_subs ) == VLC_SUCCESS )
         {
             /* check that we did not add the subtitle through sub-file */
-            for( int i = 0; i < p_subs.i_subtitles; i++ )
+            for( int i = 0; i < p_subs.i_slaves; i++ )
             {
-                subtitle *p_curr = p_subs.pp_subtitles[i];
+                input_item_slave *p_curr = p_subs.pp_slaves[i];
                 if( psz_subtitle && !strcmp( psz_subtitle, p_curr->psz_path ) )
                     p_curr->b_rejected = true;
             }
@@ -987,15 +987,15 @@ static void LoadSubtitles( input_thread_t *p_input )
             if( p_slave->i_type == SLAVE_TYPE_SPU )
             {
                 bool added = false;
-                const char *psz_path = strstr( p_slave->psz_uri, "file://" );
+                const char *psz_path = strstr( p_slave->psz_path, "file://" );
                 if( psz_path )
                 {
                     psz_path += strlen( "file://" );
 
                     /* check that we did not add the slave through sub-autodetect-path */
-                    for( int i = 0; i < p_subs.i_subtitles; i++ )
+                    for( int i = 0; i < p_subs.i_slaves; i++ )
                     {
-                        if( !strcmp( p_subs.pp_subtitles[i]->psz_path, psz_path ) )
+                        if( !strcmp( p_subs.pp_slaves[i]->psz_path, psz_path ) )
                         {
                             added = true;
                             break;
@@ -1008,24 +1008,25 @@ static void LoadSubtitles( input_thread_t *p_input )
                 }
                 if( !added )
                 {
-                    subtitle *p_sub = subtitle_New( p_slave->psz_uri,
-                                                    p_slave->i_priority );
+                    input_item_slave *p_sub = input_item_slave_New( p_slave->psz_path,
+                                                                    p_slave->i_type,
+                                                                    p_slave->i_priority );
                     if( p_sub )
-                        subtitle_list_AppendItem( &p_subs, p_sub );
+                        input_item_slave_list_AppendItem( &p_subs, p_sub );
                 }
             }
         }
         vlc_mutex_unlock( &p_input->p->p_item->lock );
 
-        subtitle_list_Sort( &p_subs );
+        input_item_slave_list_Sort( &p_subs );
 
         /* add all detected subtitles */
-        for( int i = 0; i < p_subs.i_subtitles; i++ )
+        for( int i = 0; i < p_subs.i_slaves; i++ )
         {
-            if( p_subs.pp_subtitles[i]->b_rejected )
+            if( p_subs.pp_slaves[i]->b_rejected )
                 continue;
 
-            const char *psz_path = p_subs.pp_subtitles[i]->psz_path;
+            const char *psz_path = p_subs.pp_slaves[i]->psz_path;
             i_flags |= SUB_CANFAIL;
             if( strstr( psz_path, "://" ) )
                 input_SubtitleAdd( p_input, psz_path, i_flags );
@@ -1033,7 +1034,7 @@ static void LoadSubtitles( input_thread_t *p_input )
                 input_SubtitleFileAdd( p_input, psz_path, i_flags, false );
             i_flags = SUB_NOFLAG;
         }
-        subtitle_list_Clear( &p_subs );
+        input_item_slave_list_Clear( &p_subs );
     }
     free( psz_subtitle );
 

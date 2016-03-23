@@ -572,23 +572,76 @@ void input_item_ApplyOptions(vlc_object_t *obj, input_item_t *item)
     vlc_mutex_unlock(&item->lock);
 }
 
-input_item_slave *input_item_slave_New(const char *psz_uri, uint8_t i_type,
+input_item_slave *input_item_slave_New(const char *psz_path, uint8_t i_type,
                                        uint8_t i_priority)
 {
-    input_item_slave *slave = malloc( sizeof( *slave ) );
-    if( !slave )
+    if( !psz_path )
         return NULL;
 
-    slave->psz_uri = ( psz_uri == NULL ) ? NULL : strdup( psz_uri );
-    slave->i_type = i_type;
-    slave->i_priority = i_priority;
-    return slave;
+    input_item_slave *p_slave = malloc( sizeof( *p_slave ) );
+    if( !p_slave )
+        return NULL;
+
+    p_slave->psz_path = strdup( psz_path );
+    p_slave->i_type = i_type;
+    p_slave->i_priority = i_priority;
+    p_slave->b_rejected = false;
+
+    if( !p_slave->psz_path )
+    {
+        free( p_slave );
+        return NULL;
+    }
+    return p_slave;
 }
 
 void input_item_slave_Delete(input_item_slave *p_slave)
 {
-    free( p_slave->psz_uri );
+    free( p_slave->psz_path );
     free( p_slave );
+}
+
+void input_item_slave_list_Init(input_item_slave_list *p_list)
+{
+    p_list->i_slaves = 0;
+    p_list->pp_slaves = NULL;
+}
+
+void input_item_slave_list_Clear(input_item_slave_list *p_list)
+{
+    for( int i = 0; i < p_list->i_slaves; i++ )
+        input_item_slave_Delete( p_list->pp_slaves[i] );
+    TAB_CLEAN( p_list->i_slaves, p_list->pp_slaves );
+}
+
+void input_item_slave_list_AppendItem(input_item_slave_list *p_list,
+                                      input_item_slave *p_slave)
+{
+    INSERT_ELEM( p_list->pp_slaves, p_list->i_slaves, p_list->i_slaves, p_slave );
+}
+
+static int input_item_slave_Compare(const void *a, const void *b)
+{
+    const input_item_slave *p_slave0 = a;
+    const input_item_slave *p_slave1 = b;
+
+    if( p_slave0->i_priority > p_slave1->i_priority )
+        return -1;
+
+    if( p_slave0->i_priority < p_slave1->i_priority )
+        return 1;
+
+#ifdef HAVE_STRCOLL
+    return strcoll( p_slave0->psz_path, p_slave1->psz_path );
+#else
+    return strcmp( p_slave0->psz_path, p_slave1->psz_path );
+#endif
+}
+
+void input_item_slave_list_Sort(input_item_slave_list *p_list)
+{
+    qsort( p_list->pp_slaves, p_list->i_slaves, sizeof(input_item_slave*),
+           input_item_slave_Compare );
 }
 
 int input_item_AddSlave(input_item_t *p_input, input_item_slave *p_slave)
