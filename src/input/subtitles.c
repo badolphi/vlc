@@ -198,41 +198,41 @@ static char **paths_to_list( const char *psz_dir, char *psz_path )
 }
 
 subtitle *subtitle_New( const char *psz_path, uint8_t i_priority, const char *psz_ext,
-                          bool b_rejected )
+                        bool b_rejected )
 {
     if( !psz_path || !psz_ext )
         return NULL;
 
-    subtitle *sub = malloc( sizeof( *sub ) );
-    if( !sub )
+    subtitle *p_sub = malloc( sizeof( *p_sub ) );
+    if( !p_sub )
         return NULL;
 
-    sub->psz_path = strdup( psz_path );
-    sub->i_priority = i_priority;
-    sub->psz_ext = strdup( psz_ext );
-    sub->b_rejected = b_rejected;
+    p_sub->psz_path = strdup( psz_path );
+    p_sub->i_priority = i_priority;
+    p_sub->psz_ext = strdup( psz_ext );
+    p_sub->b_rejected = b_rejected;
 
-    if( !sub->psz_path || !sub->psz_ext )
+    if( !p_sub->psz_path || !p_sub->psz_ext )
     {
-        free( sub->psz_path );
-        free( sub->psz_ext );
-        free( sub );
+        free( p_sub->psz_path );
+        free( p_sub->psz_ext );
+        free( p_sub );
         return NULL;
     }
-    return sub;
+    return p_sub;
 }
 
-void subtitle_Delete( subtitle *p_subtitle )
+void subtitle_Delete( subtitle *p_sub )
 {
-    free( p_subtitle->psz_path );
-    free( p_subtitle->psz_ext );
-    free( p_subtitle );
+    free( p_sub->psz_path );
+    free( p_sub->psz_ext );
+    free( p_sub );
 }
 
-void subtitle_list_Init( subtitle_list *list )
+void subtitle_list_Init( subtitle_list *p_list )
 {
-    list->i_subtitles = 0;
-    list->pp_subtitles = NULL;
+    p_list->i_subtitles = 0;
+    p_list->pp_subtitles = NULL;
 }
 
 void subtitle_list_Clear( subtitle_list *p_list )
@@ -250,19 +250,19 @@ void subtitle_list_AppendItem( subtitle_list *p_list, subtitle *p_subtitle )
 
 static int subtitle_Compare( const void *a, const void *b )
 {
-    const subtitle *sub0 = a;
-    const subtitle *sub1 = b;
+    const subtitle *p_sub0 = a;
+    const subtitle *p_sub1 = b;
 
-    if( sub0->i_priority > sub1->i_priority )
+    if( p_sub0->i_priority > p_sub1->i_priority )
         return -1;
 
-    if( sub0->i_priority < sub1->i_priority )
+    if( p_sub0->i_priority < p_sub1->i_priority )
         return 1;
 
 #ifdef HAVE_STRCOLL
-    return strcoll( sub0->psz_path, sub1->psz_path );
+    return strcoll( p_sub0->psz_path, p_sub1->psz_path );
 #else
-    return strcmp( sub0->psz_path, sub1->psz_path );
+    return strcmp( p_sub0->psz_path, p_sub1->psz_path );
 #endif
 }
 
