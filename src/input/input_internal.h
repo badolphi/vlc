@@ -252,7 +252,6 @@ typedef struct
 {
     char        *psz_path;
     uint8_t     i_priority;
-    char        *psz_ext;
     bool        b_rejected;
 } subtitle;
 
@@ -262,7 +261,7 @@ typedef struct
     subtitle    **pp_subtitles;
 } subtitle_list;
 
-subtitle *subtitle_New( const char *, uint8_t, const char *, bool );
+subtitle *subtitle_New( const char *, uint8_t );
 void subtitle_Delete( subtitle * );
 
 void subtitle_list_Init( subtitle_list *list );

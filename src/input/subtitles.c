@@ -197,10 +197,9 @@ static char **paths_to_list( const char *psz_dir, char *psz_path )
     return subdirs;
 }
 
-subtitle *subtitle_New( const char *psz_path, uint8_t i_priority, const char *psz_ext,
-                        bool b_rejected )
+subtitle *subtitle_New( const char *psz_path, uint8_t i_priority )
 {
-    if( !psz_path || !psz_ext )
+    if( !psz_path )
         return NULL;
 
     subtitle *p_sub = malloc( sizeof( *p_sub ) );
@@ -209,13 +208,10 @@ subtitle *subtitle_New( const char *psz_path, uint8_t i_priority, const char *ps
 
     p_sub->psz_path = strdup( psz_path );
     p_sub->i_priority = i_priority;
-    p_sub->psz_ext = strdup( psz_ext );
-    p_sub->b_rejected = b_rejected;
+    p_sub->b_rejected = false;
 
-    if( !p_sub->psz_path || !p_sub->psz_ext )
+    if( !p_sub->psz_path )
     {
-        free( p_sub->psz_path );
-        free( p_sub->psz_ext );
         free( p_sub );
         return NULL;
     }
@@ -225,7 +221,6 @@ subtitle *subtitle_New( const char *psz_path, uint8_t i_priority, const char *ps
 void subtitle_Delete( subtitle *p_sub )
 {
     free( p_sub->psz_path );
-    free( p_sub->psz_ext );
     free( p_sub );
 }
 
@@ -410,7 +405,7 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
                     msg_Dbg( p_this,
                             "autodetected subtitle: %s with priority %d",
                             path, i_prio );
-                    subtitle *p_sub = subtitle_New( path, i_prio, tmp_fname_ext, false );
+                    subtitle *p_sub = subtitle_New( path, i_prio );
                     subtitle_list_AppendItem( p_result, p_sub );
                 }
                 free( path );
@@ -433,13 +428,18 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
     {
         subtitle *p_sub = p_result->pp_subtitles[i];
 
-        if( !p_sub->psz_path || !p_sub->psz_ext )
+        if( !p_sub->psz_path )
         {
             p_sub->b_rejected = true;
             continue;
         }
 
-        if( !strcasecmp( p_sub->psz_ext, "sub" ) )
+        char *psz_ext = strrchr( p_sub->psz_path, '.' );
+        if( !psz_ext )
+            continue;
+        psz_ext++;
+
+        if( !strcasecmp( psz_ext, "sub" ) )
         {
             for( int j = 0; i < p_result->i_subtitles; j++ )
             {
@@ -450,15 +450,20 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
                     strlen( p_sub->psz_path ) - 3 ) )
                     continue;
 
+                char *psz_ext_inner = strrchr( p_sub_inner->psz_path, '.' );
+                if( !psz_ext_inner )
+                    continue;
+                psz_ext_inner++;
+
                 /* check that we have an idx file */
-                if( !strcasecmp( p_sub_inner->psz_ext, "idx" ) )
+                if( !strcasecmp( psz_ext_inner, "idx" ) )
                 {
                     p_sub->b_rejected = true;
                     break;
                 }
             }
         }
-        else if( !strcasecmp( p_sub->psz_ext, "cdg" ) )
+        else if( !strcasecmp( psz_ext, "cdg" ) )
         {
             if( p_sub->i_priority < SUB_PRIORITY_MATCH_ALL )
                 p_sub->b_rejected = true;
