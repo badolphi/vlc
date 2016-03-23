@@ -1007,14 +1007,8 @@ static void LoadSubtitles( input_thread_t *p_input )
                 }
                 if( !added )
                 {
-                    char *psz_ext = strrchr( p_slave->psz_uri, '.' );
-                    if( !psz_ext )
-                        continue;
-
                     subtitle *p_sub = subtitle_New( p_slave->psz_uri,
-                                                    p_slave->i_priority,
-                                                    psz_ext + 1,
-                                                    false );
+                                                    p_slave->i_priority );
                     if( p_sub )
                         subtitle_list_AppendItem( &p_subs, p_sub );
                 }
