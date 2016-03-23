@@ -74,7 +74,7 @@ static struct {
 
 typedef struct {
     int                 i_slaves;
-    input_item_slave  **pp_slaves;
+    input_item_slave    **pp_slaves;
 } input_item_slave_list;
 
 int Import_Dir ( vlc_object_t *p_this)
@@ -199,7 +199,7 @@ static int compar_version( input_item_t *p1, input_item_t *p2 )
     return strverscmp( p1->psz_name, p2->psz_name );
 }
 
-static char *name_from_uri(const char * psz_uri)
+static char *name_from_uri(const char *psz_uri)
 {
     char *psz_filename = strdup( psz_uri );
     if( !psz_filename )
@@ -223,15 +223,15 @@ static char *name_from_uri(const char * psz_uri)
 
     /* remove trailing white spaces */
     int i = strlen( psz_ptr ) - 1;
-    while( psz_ptr[i] == ' ' && i >= 0)
+    while( psz_ptr[i] == ' ' && i >= 0 )
         psz_ptr[i--] = '\0';
 
     /* convert to lower case */
-    char *p = psz_ptr;
-    while( *p != '\0' )
+    char *psz_p = psz_ptr;
+    while( *psz_p != '\0' )
     {
-        *p = tolower(*p);
-        p++;
+        *psz_p = tolower( *psz_p );
+        psz_p++;
     }
 
     psz_ptr = strdup( psz_ptr );
@@ -281,7 +281,7 @@ done:
     return p_slave->i_priority;
 }
 
-static void attach_slaves( demux_t * p_demux, input_item_node_t *p_node,
+static void attach_slaves( demux_t *p_demux, input_item_node_t *p_node,
                            input_item_slave_list *p_slaves )
 {
     int i_fuzzy = var_InheritInteger( p_demux, "sub-autodetect-fuzzy" );
@@ -301,10 +301,10 @@ static void attach_slaves( demux_t * p_demux, input_item_node_t *p_node,
     }
 }
 
-static void slave_list_Init(input_item_slave_list *list)
+static void slave_list_Init(input_item_slave_list *p_list)
 {
-    list->i_slaves = 0;
-    list->pp_slaves = NULL;
+    p_list->i_slaves = 0;
+    p_list->pp_slaves = NULL;
 }
 
 static void slave_list_Clear(input_item_slave_list *p_list)
@@ -323,7 +323,7 @@ static int Demux( demux_t *p_demux )
 {
     int i_ret = VLC_SUCCESS;
     input_item_t *p_input;
-    input_item_node_t *p_node = NULL;
+    input_item_node_t *p_node;
     input_item_slave_list p_slaves;
     input_item_t *p_item;
     char *psz_ignored_exts;
@@ -376,7 +376,7 @@ skip_item:
     }
     free( psz_ignored_exts );
 
-    input_item_Release(p_input);
+    input_item_Release( p_input );
 
     if( i_ret )
     {
