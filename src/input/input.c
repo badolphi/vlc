@@ -965,7 +965,7 @@ static void LoadSubtitles( input_thread_t *p_input )
         char *psz_autopath = var_GetNonEmptyString( p_input, "sub-autodetect-path" );
 
         if( subtitles_Detect( p_input, psz_autopath, p_input->p->p_item->psz_uri,
-                              &p_subs ) )
+                              &p_subs ) == VLC_SUCCESS )
         {
             /* check that we did not add the subtitle through sub-file */
             for( int i = 0; i < p_subs.i_subtitles; i++ )

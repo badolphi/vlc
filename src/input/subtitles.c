@@ -287,29 +287,29 @@ void subtitle_list_Sort( subtitle_list *p_list )
  * \return a list of subtitles with detected possible subtitles.
  * The array needs to be deleted after use.
  */
-subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_name_org,
-                  subtitle_list *result )
+int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_name_org,
+                      subtitle_list *result )
 {
     int i_fuzzy = var_GetInteger( p_this, "sub-autodetect-fuzzy" );
     if ( i_fuzzy == 0 )
-        return 0;
+        return VLC_EGENERIC;
     int j, i_fname_len;
     char *f_fname_noext = NULL, *f_fname_trim = NULL;
     char **subdirs; /* list of subdirectories to look in */
 
     if( !psz_name_org )
-        return 0;
+        return VLC_EGENERIC;
 
     char *psz_fname = vlc_uri2path( psz_name_org );
     if( !psz_fname )
-        return 0;
+        return VLC_EGENERIC;
 
     /* extract filename & dirname from psz_fname */
     char *f_dir = strdup( psz_fname );
     if( f_dir == 0 )
     {
         free( psz_fname );
-        return 0;
+        return VLC_ENOMEM;
     }
 
     const char *f_fname = strrchr( psz_fname, DIR_SEP_CHAR );
@@ -317,7 +317,7 @@ subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_name_o
     {
         free( f_dir );
         free( psz_fname );
-        return 0;
+        return VLC_EGENERIC;
     }
     f_fname++; /* Skip the '/' */
     f_dir[f_fname - psz_fname] = 0; /* keep dir separator in f_dir */
@@ -332,7 +332,7 @@ subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_name_o
         free( f_fname_noext );
         free( f_fname_trim );
         free( psz_fname );
-        return 0;
+        return VLC_ENOMEM;
     }
 
     strcpy_strip_ext( f_fname_noext, f_fname );
@@ -465,5 +465,5 @@ subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_name_o
                 p_sub->b_rejected = true;
         }
     }
-    return 1;
+    return VLC_SUCCESS;
 }
