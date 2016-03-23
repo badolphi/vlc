@@ -960,6 +960,7 @@ static void LoadSubtitles( input_thread_t *p_input )
     if( var_GetBool( p_input, "sub-autodetect-file" ) )
     {
         subtitle_list p_subs;
+        subtitle_list_Init( &p_subs );
 
         /* Add local subtitles */
         char *psz_autopath = var_GetNonEmptyString( p_input, "sub-autodetect-path" );

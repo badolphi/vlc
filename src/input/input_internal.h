@@ -270,8 +270,7 @@ void subtitle_list_Clear( subtitle_list * );
 void subtitle_list_AppendItem( subtitle_list *, subtitle * );
 void subtitle_list_Sort( subtitle_list * );
 
-int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_name_org,
-                      subtitle_list *result );
+int subtitles_Detect( input_thread_t *, char *, const char *, subtitle_list * );
 int subtitles_Filter( const char *);
 
 /* input.c */
