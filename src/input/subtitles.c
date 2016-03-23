@@ -386,7 +386,14 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
                 struct stat st;
                 char *path;
 
-                if( asprintf( &path, "%s"DIR_SEP"%s", psz_dir, psz_name ) < 0 )
+                size_t i_len = strlen( psz_dir );
+                const char *psz_format;
+                if( psz_dir[i_len - 1] == DIR_SEP_CHAR )
+                    psz_format = "%s%s";
+                else
+                    psz_format = "%s"DIR_SEP"%s";
+
+                if( asprintf( &path, psz_format, psz_dir, psz_name ) < 0 )
                     continue;
 
                 if( strcmp( path, psz_fname )
